@@ -35,6 +35,7 @@ export type AppState =
   | 'error'
 
 type MicPermissionState = 'unknown' | 'granted' | 'denied'
+type PermissionFlag = 'unknown' | 'granted' | 'denied' | 'unsupported'
 type PopupState =
   | 'idle'
   | 'prepared'
@@ -47,6 +48,10 @@ function App() {
   const [appState, setAppState] = useState<AppState>('idle')
   const [micPermission, setMicPermission] =
     useState<MicPermissionState>('unknown')
+  const [redirectPermission, setRedirectPermission] =
+    useState<PermissionFlag>('unknown')
+  const [windowPermission, setWindowPermission] =
+    useState<PermissionFlag>('unknown')
   const [popupState, setPopupState] = useState<PopupState>('idle')
   const [monitorMode, setMonitorMode] = useState<MonitorMode>('unknown')
   const [greetingKey, setGreetingKey] = useState<GreetingKey>(DEFAULT_GREETING_KEY)
@@ -55,6 +60,8 @@ function App() {
   const [hasLaunched, setHasLaunched] = useState(false)
   const [clapCount, setClapCount] = useState(0)
   const [bootComplete, setBootComplete] = useState(false)
+  const [isReady, setIsReady] = useState(false)
+  const [showClapModal, setShowClapModal] = useState(false)
   const windowPrepRef = useRef<LaunchPreparation | null>(null)
 
   const {
@@ -146,46 +153,13 @@ function App() {
     requestMicPermissionRef.current = requestMicPermission
   }, [requestMicPermission])
 
-  useEffect(() => {
-    let cancelled = false
-
-    const requestMicOnEntry = async () => {
-      try {
-        const stream = await requestMicPermissionRef.current()
-
-        if (cancelled || !stream) {
-          return
-        }
-
-        setMicPermission('granted')
-        setSupportMessage(
-          'Microphone primed on entry. Start JARVIS to arm clap listening and popup launch.',
-        )
-      } catch (error) {
-        if (cancelled) {
-          return
-        }
-
-        setMicPermission('denied')
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Microphone permission request failed on entry.'
-        setSupportMessage(message)
-      }
-    }
-
-    void requestMicOnEntry()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const statusItems = useMemo(
     () => [
+      { label: 'Ready Status', value: isReady ? 'complete' : 'pending' },
       { label: 'State', value: appState },
       { label: 'Mic Permission', value: micPermission },
+      { label: 'Redirect Permission', value: redirectPermission },
+      { label: 'Window Permission', value: windowPermission },
       { label: 'Clap Count', value: String(clapCount) },
       { label: 'Popup Status', value: popupState },
       { label: 'Monitor Mode', value: monitorMode },
@@ -208,28 +182,34 @@ function App() {
       clapCount,
       connectionStatus,
       currentTranscript,
+      isReady,
       micPermission,
       monitorMode,
       popupState,
+      redirectPermission,
       sessionStatus,
+      windowPermission,
     ],
   )
 
-  async function handleStartJarvis() {
+  async function handleReady() {
     if (hasLaunched) {
-      setSupportMessage('Reset before arming JARVIS again.')
+      setSupportMessage('Reset before preparing JARVIS again.')
       return
     }
 
     setLastError('')
-    setSupportMessage(
-      'Allow microphone access and keep popup permissions enabled for the launch sequence.',
-    )
     setAppState('requesting_permissions')
+    setSupportMessage(
+      'Preparing microphone, redirect popup shells, and window placement permissions.',
+    )
 
     cleanupLaunchWindows(windowPrepRef.current)
     windowPrepRef.current = prepareLaunchWindows()
     setPopupState(windowPrepRef.current.status)
+    const nextRedirectPermission =
+      windowPrepRef.current.status === 'blocked' ? 'denied' : 'granted'
+    setRedirectPermission(nextRedirectPermission)
 
     try {
       const stream = await requestMicPermission()
@@ -239,20 +219,69 @@ function App() {
         throw new Error('Unable to access a microphone stream.')
       }
 
+      let nextWindowPermission: PermissionFlag = 'unsupported'
+
+      if ('getScreenDetails' in window) {
+        try {
+          await window.getScreenDetails?.()
+          nextWindowPermission = 'granted'
+          setWindowPermission('granted')
+          setMonitorMode('checking-window-management')
+        } catch {
+          nextWindowPermission = 'denied'
+          setWindowPermission('denied')
+          setMonitorMode('single-screen')
+        }
+      } else {
+        nextWindowPermission = 'unsupported'
+        setWindowPermission('unsupported')
+        setMonitorMode('single-screen')
+      }
+
+      const popupReady = nextRedirectPermission !== 'denied'
+      const windowReady = nextWindowPermission !== 'denied'
+
+      setIsReady(popupReady && !!stream && windowReady)
+      setAppState('idle')
+      setSupportMessage(
+        popupReady
+          ? 'Permissions primed. Press Start JARVIS and clap twice when the modal appears.'
+          : 'Popup permission was blocked. Allow popups, then press Ready again.',
+      )
+    } catch (error) {
+      setMicPermission('denied')
+      const message =
+        error instanceof Error ? error.message : 'Failed to prepare JARVIS.'
+      setLastError(message)
+      setAppState('error')
+    }
+  }
+
+  async function handleStartJarvis() {
+    if (hasLaunched) {
+      setSupportMessage('Reset before arming JARVIS again.')
+      return
+    }
+
+    if (!isReady) {
+      setSupportMessage('Press Ready first so microphone and popup permissions are already primed.')
+      return
+    }
+
+    setLastError('')
+    setShowClapModal(true)
+    setSupportMessage('JARVIS is armed. Clap twice to begin the launch sequence.')
+    setAppState('requesting_permissions')
+
+    try {
       await startClapListening()
       setClapCount(0)
       setAppState('armed')
-      setMonitorMode(
-        'getScreenDetails' in window
-          ? 'checking-window-management'
-          : 'single-screen',
-      )
 
       if (!isRealtimeSupported) {
         setSupportMessage(SUPPORT_MESSAGES.realtimeUnsupported)
       }
     } catch (error) {
-      setMicPermission('denied')
       const message =
         error instanceof Error ? error.message : 'Failed to start JARVIS.'
       setLastError(message)
@@ -274,6 +303,7 @@ function App() {
     }
 
     setHasLaunched(true)
+    setShowClapModal(false)
     setAppState('launching')
     stopClapListening()
 
@@ -324,11 +354,16 @@ function App() {
 
     setLastError('')
     setAppState('requesting_permissions')
-    cleanupLaunchWindows(windowPrepRef.current)
-    windowPrepRef.current = prepareLaunchWindows()
-    setPopupState(windowPrepRef.current.status)
 
     try {
+      if (!isReady || !windowPrepRef.current) {
+        await handleReady()
+      }
+
+      if (!windowPrepRef.current) {
+        throw new Error('Launch windows are not prepared yet. Press Ready again.')
+      }
+
       const stream = streamRef.current ?? (await requestMicPermission())
       if (!stream) {
         throw new Error('Unable to access microphone for test launch.')
@@ -346,6 +381,7 @@ function App() {
 
   async function handleStopListening() {
     stopClapListening()
+    setShowClapModal(false)
     await stopVoiceConversation()
     setAppState('stopped')
     setSupportMessage('Voice conversation stopped. Reset to arm JARVIS again.')
@@ -360,12 +396,16 @@ function App() {
     resetRealtimeVoice()
     setAppState('idle')
     setMicPermission('unknown')
+    setRedirectPermission('unknown')
+    setWindowPermission('unknown')
     setPopupState('idle')
     setMonitorMode('unknown')
     setSupportMessage('')
     setLastError('')
     setHasLaunched(false)
     setClapCount(0)
+    setIsReady(false)
+    setShowClapModal(false)
   }
 
   return (
@@ -417,6 +457,8 @@ function App() {
         <ControlPanel
           appState={appState}
           hasLaunched={hasLaunched}
+          isReady={isReady}
+          onReady={handleReady}
           onReset={handleReset}
           onStart={handleStartJarvis}
           onStop={handleStopListening}
@@ -436,6 +478,32 @@ function App() {
         <StatusPanel items={statusItems} error={lastError} />
         <TranscriptPanel entries={transcriptEntries} />
       </section>
+      {showClapModal ? (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="permission-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clap-modal-title"
+          >
+            <span className="support-label">Activation Armed</span>
+            <h2 id="clap-modal-title">Clap twice to wake JARVIS.</h2>
+            <p>
+              Microphone, redirect popup shells, and window placement have been
+              primed. Keep this tab active, then clap two times in quick
+              succession.
+            </p>
+            <div className="modal-chip-row">
+              <span className="modal-chip">Mic: {micPermission}</span>
+              <span className="modal-chip">Redirect: {redirectPermission}</span>
+              <span className="modal-chip">Window: {windowPermission}</span>
+            </div>
+            <button className="secondary modal-dismiss" onClick={() => setShowClapModal(false)}>
+              Dismiss
+            </button>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

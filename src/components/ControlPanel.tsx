@@ -3,6 +3,8 @@ import type { AppState } from '../App'
 type ControlPanelProps = {
   appState: AppState
   hasLaunched: boolean
+  isReady: boolean
+  onReady: () => void
   onReset: () => void
   onStart: () => void
   onStop: () => void
@@ -12,6 +14,8 @@ type ControlPanelProps = {
 export function ControlPanel({
   appState,
   hasLaunched,
+  isReady,
+  onReady,
   onReset,
   onStart,
   onStop,
@@ -24,7 +28,14 @@ export function ControlPanel({
 
   return (
     <div className="control-panel">
-      <button className="primary" disabled={busy || hasLaunched} onClick={onStart}>
+      <button className="secondary" disabled={busy || hasLaunched} onClick={onReady}>
+        {isReady ? 'Ready Complete' : 'Ready'}
+      </button>
+      <button
+        className="primary"
+        disabled={busy || hasLaunched || !isReady}
+        onClick={onStart}
+      >
         Start JARVIS
       </button>
       <button

@@ -1009,7 +1009,7 @@ h1 {
 }
 
 .control-panel {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 18px;
 }
 
@@ -1125,6 +1125,65 @@ h1 {
 .error-log p {
   margin: 0;
   color: rgba(240, 210, 210, 0.95);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(1, 7, 12, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.permission-modal {
+  width: min(560px, calc(100vw - 48px));
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid rgba(89, 245, 255, 0.28);
+  background:
+    linear-gradient(180deg, rgba(89, 245, 255, 0.05), rgba(0, 0, 0, 0)),
+    rgba(4, 16, 26, 0.94);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.permission-modal h2 {
+  margin: 0 0 10px;
+  color: #f2fbff;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+}
+
+.permission-modal p {
+  margin: 0;
+  color: rgba(220, 239, 245, 0.8);
+}
+
+.modal-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modal-chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(89, 245, 255, 0.24);
+  color: var(--hud-cyan);
+  background: rgba(8, 24, 36, 0.86);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-dismiss {
+  margin-top: 20px;
+  min-width: 140px;
 }
 
 .transcript-list {
