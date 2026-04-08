@@ -33,6 +33,8 @@ export type MonitorMode =
 
 export type LaunchPreparation = {
   chatWindow: Window | null
+  followupYoutubeRect: { height: number; left: number; top: number; width: number } | null
+  mainYoutubeWindow: Window | null
   status: 'prepared' | 'blocked'
   youtubeSwapStartedAt: number | null
   youtubeSwapTimeoutId: number | null
@@ -67,6 +69,18 @@ function moveAndLoad(
   ensureWindowVisible(target)
 }
 
+function openFollowupYoutubeWindow(
+  prepared: LaunchPreparation | null,
+  rect: { height: number; left: number; top: number; width: number },
+) {
+  if (!prepared?.mainYoutubeWindow) {
+    throw new Error('Follow-up YouTube window was blocked before launch.')
+  }
+
+  prepared.followupYoutubeRect = rect
+  moveAndLoad(prepared.mainYoutubeWindow, YOUTUBE_URL, rect)
+}
+
 function getCenteredRect(screen: ScreenDetailed) {
   return {
     left: screen.availLeft + WINDOW_MARGIN,
@@ -77,7 +91,7 @@ function getCenteredRect(screen: ScreenDetailed) {
 }
 
 function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
-  if (!prepared?.youtubeWindow) {
+  if (!prepared?.youtubeWindow || !prepared.mainYoutubeWindow) {
     return
   }
 
@@ -91,13 +105,15 @@ function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
 
   prepared.youtubeSwapStartedAt = Date.now()
 
-  const swapToPrimaryVideo = () => {
-    if (!prepared.youtubeWindow || prepared.youtubeWindow.closed) {
+  const openSecondVideoWindow = () => {
+    const rect = prepared.followupYoutubeRect
+
+    if (!rect || !prepared.mainYoutubeWindow || prepared.mainYoutubeWindow.closed) {
       return
     }
 
-    prepared.youtubeWindow.location.replace(YOUTUBE_URL)
-    ensureWindowVisible(prepared.youtubeWindow)
+    openFollowupYoutubeWindow(prepared, rect)
+    ensureWindowVisible(prepared.mainYoutubeWindow)
     prepared.youtubeSwapTimeoutId = null
     prepared.youtubeSwapStartedAt = null
 
@@ -108,7 +124,7 @@ function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
   }
 
   prepared.youtubeSwapTimeoutId = window.setTimeout(
-    swapToPrimaryVideo,
+    openSecondVideoWindow,
     YOUTUBE_SWAP_DELAY_MS,
   )
 
@@ -123,7 +139,7 @@ function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
     }
 
     if (Date.now() - startedAt >= YOUTUBE_SWAP_DELAY_MS) {
-      swapToPrimaryVideo()
+      openSecondVideoWindow()
     }
   }, 1000)
 }
@@ -135,6 +151,11 @@ export function prepareLaunchWindows(): LaunchPreparation {
     'jarvis-youtube-shell',
     'popup=yes,width=720,height=900',
   )
+  const mainYoutubeWindow = window.open(
+    '',
+    'jarvis-youtube-followup-shell',
+    'popup=yes,width=720,height=900',
+  )
   const chatWindow = window.open(
     '',
     'jarvis-chatgpt-shell',
@@ -143,8 +164,10 @@ export function prepareLaunchWindows(): LaunchPreparation {
 
   return {
     youtubeWindow,
+    mainYoutubeWindow,
     chatWindow,
-    status: youtubeWindow && chatWindow ? 'prepared' : 'blocked',
+    status: youtubeWindow && mainYoutubeWindow && chatWindow ? 'prepared' : 'blocked',
+    followupYoutubeRect: null,
     youtubeSwapStartedAt: null,
     youtubeSwapTimeoutId: null,
     youtubeSwapRetryIntervalId: null,
@@ -174,6 +197,9 @@ export function openWindowsSingleScreen(
 
   moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_INTRO_URL, leftRect)
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, rightRect)
+  if (prepared) {
+    prepared.followupYoutubeRect = leftRect
+  }
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
   scheduleYoutubeSwap(prepared)
 
@@ -199,6 +225,9 @@ export async function openWindowsMultiScreen(
     YOUTUBE_INTRO_URL,
     getCenteredRect(firstScreen),
   )
+  if (prepared) {
+    prepared.followupYoutubeRect = getCenteredRect(firstScreen)
+  }
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, getCenteredRect(secondScreen))
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
   scheduleYoutubeSwap(prepared)
@@ -208,7 +237,9 @@ export async function openWindowsMultiScreen(
 
 export function focusLaunchWindows(prepared: LaunchPreparation | null) {
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
+  ensureWindowVisible(prepared?.mainYoutubeWindow ?? null)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
+  window.setTimeout(() => ensureWindowVisible(prepared?.mainYoutubeWindow ?? null), 180)
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
@@ -224,8 +255,10 @@ export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
 
   if (prepared) {
     prepared.youtubeSwapStartedAt = null
+    prepared.followupYoutubeRect = null
   }
 
   prepared?.youtubeWindow?.close()
+  prepared?.mainYoutubeWindow?.close()
   prepared?.chatWindow?.close()
 }
