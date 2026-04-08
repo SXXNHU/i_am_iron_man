@@ -1,4 +1,4 @@
-import { createRealtimeSession } from '../server/realtimeSession'
+import { createRealtimeSession } from '../server/realtimeSession.js'
 
 type ApiRequest = {
   body?: Record<string, unknown>
