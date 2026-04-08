@@ -102,17 +102,6 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
           <div className="boot-side-mark side-mark-top" />
           <div className="boot-side-mark side-mark-bottom" />
 
-          <div className="boot-battery-panel">
-            <div className="boot-battery-grid">
-              {Array.from({ length: cellCount }, (_, index) => (
-                <span
-                  key={index}
-                  className={`boot-battery-cell${index < activeCellCount ? ' active' : ''}`}
-                  style={{ animationDelay: `${index * 60}ms` }}
-                />
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="boot-copy">
