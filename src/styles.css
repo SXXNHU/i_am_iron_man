@@ -360,11 +360,11 @@ select {
 }
 
 .boot-battery-panel {
-  width: 420px;
+  width: 460px;
   transform: translateY(176px);
-  padding: 12px 16px;
+  padding: 12px 14px;
   border: 1px solid rgba(89, 245, 255, 0.18);
-  border-radius: 999px;
+  border-radius: 14px;
   background: rgba(5, 18, 28, 0.72);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
@@ -372,26 +372,30 @@ select {
 .boot-battery-grid,
 .boot-progress-segments {
   display: grid;
-  grid-template-columns: repeat(18, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .boot-battery-cell,
 .boot-progress-segment {
   display: block;
-  height: 16px;
-  border-radius: 999px;
-  background: rgba(89, 245, 255, 0.1);
-  border: 1px solid rgba(89, 245, 255, 0.12);
+  height: 10px;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(89, 245, 255, 0.1), rgba(89, 245, 255, 0.03));
+  border: 1px solid rgba(89, 245, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .boot-battery-cell.active,
 .boot-progress-segment.active {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--hud-cyan));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(111, 248, 255, 0.94) 52%, rgba(37, 221, 255, 0.82));
   border-color: rgba(89, 245, 255, 0.78);
   box-shadow:
-    0 0 12px rgba(89, 245, 255, 0.36),
-    inset 0 0 8px rgba(255, 255, 255, 0.22);
+    0 0 12px rgba(89, 245, 255, 0.34),
+    0 0 20px rgba(89, 245, 255, 0.18),
+    inset 0 0 6px rgba(255, 255, 255, 0.22);
   animation: cell-pop 260ms ease;
 }
 
@@ -830,7 +834,7 @@ select {
 
 .boot-progress-track {
   padding: 10px 12px;
-  border-radius: 999px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(89, 245, 255, 0.14);
 }
