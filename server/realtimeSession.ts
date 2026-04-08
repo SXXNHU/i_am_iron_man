@@ -1,4 +1,6 @@
-import process from 'node:process'
+declare const process: {
+  env: Record<string, string | undefined>
+}
 
 type RealtimeRequestBody = {
   instructions?: string
