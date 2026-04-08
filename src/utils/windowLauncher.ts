@@ -42,6 +42,75 @@ export type LaunchPreparation = {
   youtubeWindow: Window | null
 }
 
+function writeLaunchShell(
+  target: Window | null,
+  title: string,
+  message: string,
+) {
+  if (!target || target.closed) {
+    return
+  }
+
+  try {
+    target.document.open()
+    target.document.write(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at top, rgba(89, 245, 255, 0.16), transparent 28%),
+          linear-gradient(180deg, #031018, #02060c);
+        color: #e8fbff;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .shell {
+        width: min(520px, calc(100vw - 48px));
+        padding: 28px;
+        border: 1px solid rgba(89, 245, 255, 0.24);
+        border-radius: 20px;
+        background: rgba(3, 15, 24, 0.88);
+        box-shadow: 0 0 30px rgba(89, 245, 255, 0.08);
+      }
+      .kicker {
+        color: #59f5ff;
+        font-size: 12px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+      }
+      h1 {
+        margin: 12px 0 8px;
+        font-size: 28px;
+        letter-spacing: 0.08em;
+      }
+      p {
+        margin: 0;
+        color: rgba(232, 251, 255, 0.72);
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="kicker">JARVIS Launch Shell</div>
+      <h1>${title}</h1>
+      <p>${message}</p>
+    </main>
+  </body>
+</html>`)
+    target.document.close()
+  } catch {
+    // Ignore cross-window shell write failures.
+  }
+}
+
 function ensureWindowVisible(target: Window | null) {
   if (!target || target.closed) {
     return
@@ -76,6 +145,11 @@ function reserveFollowupYoutubeTab(youtubeWindow: Window | null) {
 
   try {
     const followupTab = youtubeWindow.open('', 'jarvis-youtube-followup-tab')
+    writeLaunchShell(
+      followupTab,
+      'Follow-up Video Armed',
+      'Stand by. The second YouTube sequence will attach here after the intro finishes.',
+    )
     ensureWindowVisible(youtubeWindow)
     return followupTab
   } catch {
@@ -176,6 +250,18 @@ export function prepareLaunchWindows(): LaunchPreparation {
     'jarvis-chatgpt-shell',
     'popup=yes,width=720,height=900',
   )
+
+  writeLaunchShell(
+    youtubeWindow,
+    'Video Channel Armed',
+    'Waiting for the double-clap trigger before loading the intro video.',
+  )
+  writeLaunchShell(
+    chatWindow,
+    'Chat Channel Armed',
+    'This window is reserved for ChatGPT and will route after activation.',
+  )
+
   const followupYoutubeTab = reserveFollowupYoutubeTab(youtubeWindow)
 
   const status =
@@ -218,14 +304,15 @@ export function openWindowsSingleScreen(
     height,
   }
 
-  moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_INTRO_AUTOPLAY_URL, leftRect)
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, rightRect)
+  moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_INTRO_AUTOPLAY_URL, leftRect)
   if (prepared) {
     prepared.followupYoutubeRect = leftRect
   }
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 260)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
   scheduleYoutubeSwap(prepared)
 
   return 'single-screen'
@@ -247,14 +334,15 @@ export async function openWindowsMultiScreen(
   const [firstScreen, secondScreen] = details.screens
   const youtubeRect = getCenteredRect(firstScreen)
 
+  moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, getCenteredRect(secondScreen))
   moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_INTRO_AUTOPLAY_URL, youtubeRect)
   if (prepared) {
     prepared.followupYoutubeRect = youtubeRect
   }
-  moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, getCenteredRect(secondScreen))
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 260)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
   scheduleYoutubeSwap(prepared)
 
   return 'multi-screen'
@@ -264,6 +352,7 @@ export function focusLaunchWindows(prepared: LaunchPreparation | null) {
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 260)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
