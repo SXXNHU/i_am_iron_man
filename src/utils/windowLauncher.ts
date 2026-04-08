@@ -1,4 +1,10 @@
-import { CHATGPT_URL, WINDOW_MARGIN, YOUTUBE_URL } from './constants'
+import {
+  CHATGPT_URL,
+  WINDOW_MARGIN,
+  YOUTUBE_INTRO_URL,
+  YOUTUBE_SWAP_DELAY_MS,
+  YOUTUBE_URL,
+} from './constants'
 
 declare global {
   interface Window {
@@ -28,6 +34,7 @@ export type MonitorMode =
 export type LaunchPreparation = {
   chatWindow: Window | null
   status: 'prepared' | 'blocked'
+  youtubeSwapTimeoutId: number | null
   youtubeWindow: Window | null
 }
 
@@ -55,6 +62,26 @@ function getCenteredRect(screen: ScreenDetailed) {
   }
 }
 
+function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
+  if (!prepared?.youtubeWindow) {
+    return
+  }
+
+  if (prepared.youtubeSwapTimeoutId) {
+    window.clearTimeout(prepared.youtubeSwapTimeoutId)
+  }
+
+  prepared.youtubeSwapTimeoutId = window.setTimeout(() => {
+    if (!prepared.youtubeWindow || prepared.youtubeWindow.closed) {
+      return
+    }
+
+    prepared.youtubeWindow.location.replace(YOUTUBE_URL)
+    prepared.youtubeWindow.focus()
+    prepared.youtubeSwapTimeoutId = null
+  }, YOUTUBE_SWAP_DELAY_MS)
+}
+
 export function prepareLaunchWindows(): LaunchPreparation {
   // Pre-opening blank windows during a trusted click makes later navigation less likely to be blocked.
   const youtubeWindow = window.open(
@@ -72,6 +99,7 @@ export function prepareLaunchWindows(): LaunchPreparation {
     youtubeWindow,
     chatWindow,
     status: youtubeWindow && chatWindow ? 'prepared' : 'blocked',
+    youtubeSwapTimeoutId: null,
   }
 }
 
@@ -96,8 +124,9 @@ export function openWindowsSingleScreen(
     height,
   }
 
-  moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_URL, leftRect)
+  moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_INTRO_URL, leftRect)
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, rightRect)
+  scheduleYoutubeSwap(prepared)
 
   return 'single-screen'
 }
@@ -116,13 +145,23 @@ export async function openWindowsMultiScreen(
   }
 
   const [firstScreen, secondScreen] = details.screens
-  moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_URL, getCenteredRect(firstScreen))
+  moveAndLoad(
+    prepared?.youtubeWindow ?? null,
+    YOUTUBE_INTRO_URL,
+    getCenteredRect(firstScreen),
+  )
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, getCenteredRect(secondScreen))
+  scheduleYoutubeSwap(prepared)
 
   return 'multi-screen'
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
+  if (prepared?.youtubeSwapTimeoutId) {
+    window.clearTimeout(prepared.youtubeSwapTimeoutId)
+    prepared.youtubeSwapTimeoutId = null
+  }
+
   prepared?.youtubeWindow?.close()
   prepared?.chatWindow?.close()
 }

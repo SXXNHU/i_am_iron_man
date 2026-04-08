@@ -1,4 +1,6 @@
 export const YOUTUBE_URL = 'https://www.youtube.com/watch?v=qRrElw4TSB4'
+export const YOUTUBE_INTRO_URL = 'https://www.youtube.com/watch?v=LuuOpozKbvE'
+export const YOUTUBE_SWAP_DELAY_MS = 10_000
 export const CHATGPT_URL = 'https://chatgpt.com'
 
 export const GREETING_OPTIONS = {
