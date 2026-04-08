@@ -126,18 +126,23 @@ export function useRealtimeVoice({
           type: 'session.update',
           session: {
             instructions: REALTIME_SYSTEM_PROMPT,
-            voice: session.voice,
-            modalities: ['text', 'audio'],
-            input_audio_transcription: {
-              model: 'gpt-4o-mini-transcribe',
-            },
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.55,
-              silence_duration_ms: 650,
-              prefix_padding_ms: 250,
-              create_response: true,
-              interrupt_response: true,
+            audio: {
+              input: {
+                transcription: {
+                  model: 'gpt-4o-mini-transcribe',
+                },
+                turn_detection: {
+                  type: 'server_vad',
+                  threshold: 0.55,
+                  silence_duration_ms: 650,
+                  prefix_padding_ms: 250,
+                  create_response: true,
+                  interrupt_response: true,
+                },
+              },
+              output: {
+                voice: session.voice,
+              },
             },
           },
         })

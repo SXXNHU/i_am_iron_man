@@ -25,8 +25,12 @@ export async function createRealtimeSession(body: RealtimeRequestBody) {
       session: {
         type: 'realtime',
         model: body.model,
-        voice: body.voice,
         instructions: body.instructions,
+        audio: {
+          output: {
+            voice: body.voice,
+          },
+        },
       },
     }),
   })
