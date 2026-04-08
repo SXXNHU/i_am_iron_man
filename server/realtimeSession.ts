@@ -42,9 +42,11 @@ export async function createRealtimeSession(body: RealtimeRequestBody) {
 
   const payload = (await response.json()) as {
     client_secret?: { value?: string; expires_at?: number }
+    expires_at?: number
+    value?: string
   }
 
-  const clientSecret = payload.client_secret?.value
+  const clientSecret = payload.value ?? payload.client_secret?.value
 
   if (!clientSecret) {
     throw new Error('OpenAI did not return a realtime client secret.')
@@ -52,7 +54,10 @@ export async function createRealtimeSession(body: RealtimeRequestBody) {
 
   return {
     clientSecret,
-    expiresAt: payload.client_secret?.expires_at ?? Date.now() + 60_000,
+    expiresAt:
+      payload.expires_at ??
+      payload.client_secret?.expires_at ??
+      Date.now() + 60_000,
     model: body.model ?? 'gpt-realtime',
     voice: body.voice ?? 'cedar',
   }
