@@ -286,7 +286,11 @@ function App() {
       await startClapListening()
       setClapCount(0)
       setShowClapModal(true)
-      setSupportMessage('JARVIS is armed. Clap twice to begin the launch sequence.')
+      setSupportMessage(
+        windowPrepRef.current.status === 'prepared-with-fallback'
+          ? 'JARVIS is armed. The intro will autoplay muted, and the follow-up may reuse the first popup if a reserved tab is unavailable.'
+          : 'JARVIS is armed. The intro will autoplay muted, and the follow-up will open in a new tab after 7 seconds.',
+      )
       setAppState('armed')
 
       if (!isRealtimeSupported) {
@@ -333,7 +337,7 @@ function App() {
       setSupportMessage(
         source === 'test-launch'
           ? 'Test launch completed. Realtime conversation is ready.'
-          : 'JARVIS sequence completed. Hands-free conversation is active.',
+          : 'JARVIS sequence completed. Hands-free conversation is active, with muted intro autoplay and a delayed follow-up tab.',
       )
     } catch (error) {
       const message =
@@ -451,7 +455,9 @@ function App() {
             <p>
               For the split-window launch to work reliably, allow popups when
               you click <strong>Start JARVIS</strong>. The <strong>Ready</strong>{' '}
-              step no longer opens any windows.
+              step no longer opens any windows. The intro clip opens muted for
+              reliable autoplay, then the follow-up video moves into a new tab
+              inside the same YouTube popup when available.
             </p>
           </div>
           <div className="support-callout">
@@ -508,7 +514,8 @@ function App() {
             <h2 id="clap-modal-title">Clap twice to wake JARVIS.</h2>
             <p>
               Launch windows are now open. Keep this tab active, then clap two
-              times in quick succession to continue.
+              times in quick succession to continue. The intro clip starts
+              muted, then hands off to a follow-up tab after 7 seconds.
             </p>
             <div className="modal-chip-row">
               <span className="modal-chip">Mic: {micPermission}</span>

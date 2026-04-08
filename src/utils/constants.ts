@@ -1,7 +1,37 @@
-export const YOUTUBE_URL = 'https://www.youtube.com/watch?v=qRrElw4TSB4'
-export const YOUTUBE_INTRO_URL = 'https://www.youtube.com/watch?v=LuuOpozKbvE'
+export const YOUTUBE_FOLLOWUP_WATCH_URL = 'https://www.youtube.com/watch?v=qRrElw4TSB4'
+export const YOUTUBE_INTRO_WATCH_URL = 'https://www.youtube.com/watch?v=LuuOpozKbvE'
 export const YOUTUBE_SWAP_DELAY_MS = 7_000
 export const CHATGPT_URL = 'https://chatgpt.com'
+
+function buildYoutubeEmbedUrl(
+  videoId: string,
+  options: {
+    autoplay?: boolean
+    mute?: boolean
+  } = {},
+) {
+  const params = new URLSearchParams({
+    autoplay: options.autoplay ? '1' : '0',
+    rel: '0',
+    playsinline: '1',
+    modestbranding: '1',
+  })
+
+  if (options.mute) {
+    params.set('mute', '1')
+  }
+
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`
+}
+
+export const YOUTUBE_INTRO_AUTOPLAY_URL = buildYoutubeEmbedUrl('LuuOpozKbvE', {
+  autoplay: true,
+  mute: true,
+})
+
+export const YOUTUBE_FOLLOWUP_AUTOPLAY_URL = buildYoutubeEmbedUrl('qRrElw4TSB4', {
+  autoplay: true,
+})
 
 export const GREETING_OPTIONS = {
   polished: 'Welcome back, boss. What are we building today?',
