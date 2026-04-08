@@ -34,8 +34,22 @@ export type MonitorMode =
 export type LaunchPreparation = {
   chatWindow: Window | null
   status: 'prepared' | 'blocked'
+  youtubeSwapStartedAt: number | null
   youtubeSwapTimeoutId: number | null
+  youtubeSwapRetryIntervalId: number | null
   youtubeWindow: Window | null
+}
+
+function ensureWindowVisible(target: Window | null) {
+  if (!target || target.closed) {
+    return
+  }
+
+  try {
+    target.focus()
+  } catch {
+    // Ignore browser-specific focus errors.
+  }
 }
 
 function moveAndLoad(
@@ -50,7 +64,7 @@ function moveAndLoad(
   target.moveTo(rect.left, rect.top)
   target.resizeTo(rect.width, rect.height)
   target.location.replace(url)
-  target.focus()
+  ensureWindowVisible(target)
 }
 
 function getCenteredRect(screen: ScreenDetailed) {
@@ -71,15 +85,47 @@ function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
     window.clearTimeout(prepared.youtubeSwapTimeoutId)
   }
 
-  prepared.youtubeSwapTimeoutId = window.setTimeout(() => {
+  if (prepared.youtubeSwapRetryIntervalId) {
+    window.clearInterval(prepared.youtubeSwapRetryIntervalId)
+  }
+
+  prepared.youtubeSwapStartedAt = Date.now()
+
+  const swapToPrimaryVideo = () => {
     if (!prepared.youtubeWindow || prepared.youtubeWindow.closed) {
       return
     }
 
     prepared.youtubeWindow.location.replace(YOUTUBE_URL)
-    prepared.youtubeWindow.focus()
+    ensureWindowVisible(prepared.youtubeWindow)
     prepared.youtubeSwapTimeoutId = null
-  }, YOUTUBE_SWAP_DELAY_MS)
+    prepared.youtubeSwapStartedAt = null
+
+    if (prepared.youtubeSwapRetryIntervalId) {
+      window.clearInterval(prepared.youtubeSwapRetryIntervalId)
+      prepared.youtubeSwapRetryIntervalId = null
+    }
+  }
+
+  prepared.youtubeSwapTimeoutId = window.setTimeout(
+    swapToPrimaryVideo,
+    YOUTUBE_SWAP_DELAY_MS,
+  )
+
+  prepared.youtubeSwapRetryIntervalId = window.setInterval(() => {
+    if (!prepared.youtubeWindow || prepared.youtubeWindow.closed) {
+      return
+    }
+
+    const startedAt = prepared.youtubeSwapStartedAt
+    if (!startedAt) {
+      return
+    }
+
+    if (Date.now() - startedAt >= YOUTUBE_SWAP_DELAY_MS) {
+      swapToPrimaryVideo()
+    }
+  }, 1000)
 }
 
 export function prepareLaunchWindows(): LaunchPreparation {
@@ -99,7 +145,9 @@ export function prepareLaunchWindows(): LaunchPreparation {
     youtubeWindow,
     chatWindow,
     status: youtubeWindow && chatWindow ? 'prepared' : 'blocked',
+    youtubeSwapStartedAt: null,
     youtubeSwapTimeoutId: null,
+    youtubeSwapRetryIntervalId: null,
   }
 }
 
@@ -126,6 +174,7 @@ export function openWindowsSingleScreen(
 
   moveAndLoad(prepared?.youtubeWindow ?? null, YOUTUBE_INTRO_URL, leftRect)
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, rightRect)
+  ensureWindowVisible(prepared?.youtubeWindow ?? null)
   scheduleYoutubeSwap(prepared)
 
   return 'single-screen'
@@ -151,15 +200,30 @@ export async function openWindowsMultiScreen(
     getCenteredRect(firstScreen),
   )
   moveAndLoad(prepared?.chatWindow ?? null, CHATGPT_URL, getCenteredRect(secondScreen))
+  ensureWindowVisible(prepared?.youtubeWindow ?? null)
   scheduleYoutubeSwap(prepared)
 
   return 'multi-screen'
+}
+
+export function focusLaunchWindows(prepared: LaunchPreparation | null) {
+  ensureWindowVisible(prepared?.youtubeWindow ?? null)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
   if (prepared?.youtubeSwapTimeoutId) {
     window.clearTimeout(prepared.youtubeSwapTimeoutId)
     prepared.youtubeSwapTimeoutId = null
+  }
+
+  if (prepared?.youtubeSwapRetryIntervalId) {
+    window.clearInterval(prepared.youtubeSwapRetryIntervalId)
+    prepared.youtubeSwapRetryIntervalId = null
+  }
+
+  if (prepared) {
+    prepared.youtubeSwapStartedAt = null
   }
 
   prepared?.youtubeWindow?.close()

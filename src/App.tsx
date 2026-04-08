@@ -14,6 +14,7 @@ import {
 } from './utils/constants'
 import {
   cleanupLaunchWindows,
+  focusLaunchWindows,
   openWindowsMultiScreen,
   openWindowsSingleScreen,
   prepareLaunchWindows,
@@ -70,6 +71,7 @@ function App() {
       void triggerJarvisSequence('double-clap')
     },
   })
+  const requestMicPermissionRef = useRef(requestMicPermission)
 
   const {
     connectionStatus,
@@ -132,6 +134,46 @@ function App() {
   useEffect(() => {
     return () => {
       cleanupLaunchWindows(windowPrepRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    requestMicPermissionRef.current = requestMicPermission
+  }, [requestMicPermission])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const requestMicOnEntry = async () => {
+      try {
+        const stream = await requestMicPermissionRef.current()
+
+        if (cancelled || !stream) {
+          return
+        }
+
+        setMicPermission('granted')
+        setSupportMessage(
+          'Microphone primed on entry. Start JARVIS to arm clap listening and popup launch.',
+        )
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+
+        setMicPermission('denied')
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Microphone permission request failed on entry.'
+        setSupportMessage(message)
+      }
+    }
+
+    void requestMicOnEntry()
+
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -235,6 +277,7 @@ function App() {
       setPopupState('opened')
       setMonitorMode(placement)
       setAppState('greeting')
+      focusLaunchWindows(windowPrepRef.current)
 
       const greetingPromise = speakGreeting(GREETING_OPTIONS[greetingKey])
       await initRealtimeVoiceSession(stream)
