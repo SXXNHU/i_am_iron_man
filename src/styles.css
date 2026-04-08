@@ -113,8 +113,9 @@ select {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 28px;
+  gap: 22px;
   width: min(980px, calc(100vw - 120px));
+  transform: translateY(-52px);
 }
 
 .boot-core {
