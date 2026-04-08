@@ -729,6 +729,7 @@ select {
   right: 180px;
   display: grid;
   gap: 8px;
+  transform: translateX(25px);
 }
 
 .metric {
