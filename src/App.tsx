@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BootSequence } from './components/BootSequence'
 import { ControlPanel } from './components/ControlPanel'
+import { HudShowcase } from './components/HudShowcase'
 import { StatusPanel } from './components/StatusPanel'
 import { TranscriptPanel } from './components/TranscriptPanel'
 import { useClapDetection } from './hooks/useClapDetection'
@@ -330,6 +331,14 @@ function App() {
         <p className="subtitle">
           Double clap to wake your desktop assistant.
         </p>
+
+        <HudShowcase
+          appState={appState}
+          assistantResponse={assistantResponse}
+          clapCount={clapCount}
+          connectionStatus={connectionStatus}
+          currentTranscript={currentTranscript}
+        />
 
         <div className="support-grid">
           <div className="support-callout">
