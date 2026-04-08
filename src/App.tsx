@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { BootSequence } from './components/BootSequence'
 import { ControlPanel } from './components/ControlPanel'
 import { StatusPanel } from './components/StatusPanel'
 import { TranscriptPanel } from './components/TranscriptPanel'
@@ -46,6 +47,7 @@ function App() {
   const [lastError, setLastError] = useState('')
   const [hasLaunched, setHasLaunched] = useState(false)
   const [clapCount, setClapCount] = useState(0)
+  const [bootComplete, setBootComplete] = useState(false)
   const windowPrepRef = useRef<LaunchPreparation | null>(null)
 
   const {
@@ -319,9 +321,10 @@ function App() {
 
   return (
     <main className="app-shell">
+      {!bootComplete ? <BootSequence onComplete={() => setBootComplete(true)} /> : null}
       <div className="ambient ambient-left" />
       <div className="ambient ambient-right" />
-      <section className="hud-card">
+      <section className={`hud-card${bootComplete ? ' hud-card-live' : ' hud-card-hidden'}`}>
         <div className="eyebrow">Desktop Activation Prototype</div>
         <h1>JARVIS MODE</h1>
         <p className="subtitle">
