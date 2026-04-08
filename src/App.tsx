@@ -35,7 +35,12 @@ export type AppState =
   | 'error'
 
 type MicPermissionState = 'unknown' | 'granted' | 'denied'
-type PermissionFlag = 'unknown' | 'granted' | 'denied' | 'unsupported'
+type PermissionFlag =
+  | 'unknown'
+  | 'granted'
+  | 'denied'
+  | 'unsupported'
+  | 'pending-start'
 type PopupState =
   | 'idle'
   | 'prepared'
@@ -201,15 +206,12 @@ function App() {
     setLastError('')
     setAppState('requesting_permissions')
     setSupportMessage(
-      'Preparing microphone, redirect popup shells, and window placement permissions.',
+      'Preparing microphone access and window placement permission before launch.',
     )
-
     cleanupLaunchWindows(windowPrepRef.current)
-    windowPrepRef.current = prepareLaunchWindows()
-    setPopupState(windowPrepRef.current.status)
-    const nextRedirectPermission =
-      windowPrepRef.current.status === 'blocked' ? 'denied' : 'granted'
-    setRedirectPermission(nextRedirectPermission)
+    windowPrepRef.current = null
+    setPopupState('idle')
+    setRedirectPermission('pending-start')
 
     try {
       const stream = await requestMicPermission()
@@ -238,18 +240,16 @@ function App() {
         setMonitorMode('single-screen')
       }
 
-      const popupReady = nextRedirectPermission !== 'denied'
       const windowReady = nextWindowPermission !== 'denied'
 
-      setIsReady(popupReady && !!stream && windowReady)
+      setIsReady(!!stream && windowReady)
       setAppState('idle')
       setSupportMessage(
-        popupReady
-          ? 'Permissions primed. Press Start JARVIS and clap twice when the modal appears.'
-          : 'Popup permission was blocked. Allow popups, then press Ready again.',
+        'Microphone and window permissions are primed. Press Start JARVIS to open the launch windows and begin clap detection.',
       )
     } catch (error) {
       setMicPermission('denied')
+      setRedirectPermission('unknown')
       const message =
         error instanceof Error ? error.message : 'Failed to prepare JARVIS.'
       setLastError(message)
@@ -269,13 +269,24 @@ function App() {
     }
 
     setLastError('')
-    setShowClapModal(true)
-    setSupportMessage('JARVIS is armed. Clap twice to begin the launch sequence.')
     setAppState('requesting_permissions')
 
     try {
+      cleanupLaunchWindows(windowPrepRef.current)
+      windowPrepRef.current = prepareLaunchWindows()
+      setPopupState(windowPrepRef.current.status)
+
+      const popupGranted = windowPrepRef.current.status !== 'blocked'
+      setRedirectPermission(popupGranted ? 'granted' : 'denied')
+
+      if (!popupGranted) {
+        throw new Error('Popup windows were blocked. Allow popups, then press Start JARVIS again.')
+      }
+
       await startClapListening()
       setClapCount(0)
+      setShowClapModal(true)
+      setSupportMessage('JARVIS is armed. Clap twice to begin the launch sequence.')
       setAppState('armed')
 
       if (!isRealtimeSupported) {
@@ -356,12 +367,8 @@ function App() {
     setAppState('requesting_permissions')
 
     try {
-      if (!isReady || !windowPrepRef.current) {
+      if (!isReady) {
         await handleReady()
-      }
-
-      if (!windowPrepRef.current) {
-        throw new Error('Launch windows are not prepared yet. Press Ready again.')
       }
 
       const stream = streamRef.current ?? (await requestMicPermission())
@@ -370,6 +377,16 @@ function App() {
       }
 
       setMicPermission('granted')
+      cleanupLaunchWindows(windowPrepRef.current)
+      windowPrepRef.current = prepareLaunchWindows()
+      setPopupState(windowPrepRef.current.status)
+      const popupGranted = windowPrepRef.current.status !== 'blocked'
+      setRedirectPermission(popupGranted ? 'granted' : 'denied')
+
+      if (!popupGranted) {
+        throw new Error('Popup windows were blocked. Allow popups, then run the test launch again.')
+      }
+
       await triggerJarvisSequence('test-launch')
     } catch (error) {
       const message =
@@ -433,7 +450,8 @@ function App() {
             <span className="support-label">Popup Notice</span>
             <p>
               For the split-window launch to work reliably, allow popups when
-              you click <strong>Start JARVIS</strong>.
+              you click <strong>Start JARVIS</strong>. The <strong>Ready</strong>{' '}
+              step no longer opens any windows.
             </p>
           </div>
           <div className="support-callout">
@@ -489,9 +507,8 @@ function App() {
             <span className="support-label">Activation Armed</span>
             <h2 id="clap-modal-title">Clap twice to wake JARVIS.</h2>
             <p>
-              Microphone, redirect popup shells, and window placement have been
-              primed. Keep this tab active, then clap two times in quick
-              succession.
+              Launch windows are now open. Keep this tab active, then clap two
+              times in quick succession to continue.
             </p>
             <div className="modal-chip-row">
               <span className="modal-chip">Mic: {micPermission}</span>
