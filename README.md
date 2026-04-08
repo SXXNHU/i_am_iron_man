@@ -1,42 +1,33 @@
-# JARVIS Mode Prototype
+# tony-stark
 
-A Vite + React + TypeScript desktop web app that simulates a futuristic desktop aide activation flow:
-
-1. Click `Start JARVIS`
-2. Grant microphone access and keep popups allowed
-3. Double clap to activate
-4. Hear an instant greeting
-5. Launch YouTube + ChatGPT windows
-6. Continue with OpenAI Realtime API voice conversation over WebRTC
+JARVIS 모드 프로토타입 웹앱입니다.  
+마이크 권한을 받고 더블 클랩으로 시스템을 깨운 뒤, 음성 인사와 함께 외부 창을 열고 OpenAI Realtime API 음성 대화로 이어지는 미래형 데스크톱 어시스턴트 흐름을 실험합니다.
 
 ## Stack
 
-- Vite + React + TypeScript
-- Web Audio API for clap detection
-- WebRTC + OpenAI Realtime API for voice conversation
-- Node.js + Express for local session creation
-- Vercel serverless function for deployment compatibility
+- React
+- TypeScript
+- Vite
+- Express
+- Web Audio API
+- WebRTC
+- OpenAI Realtime API
+- Vercel Serverless Function
 
-## Environment
+## Features
 
-Create `.env` from `.env.example`:
+- 더블 클랩 감지로 JARVIS 시작
+- 음성 인사 재생
+- YouTube / ChatGPT 창 실행
+- OpenAI Realtime API 기반 음성 대화
+- 로컬 Express 세션 서버와 Vercel 서버리스 함수 동시 지원
 
-```bash
-OPENAI_API_KEY=your_openai_api_key_here
-PORT=8787
-```
+## Run
 
-## Run Locally
-
-Install dependencies if needed:
+`.env`를 `.env.example` 기준으로 준비한 뒤 실행합니다.
 
 ```bash
 npm install
-```
-
-Start the frontend and local session server together:
-
-```bash
 npm run dev
 ```
 
@@ -46,31 +37,64 @@ Useful scripts:
 npm run dev:client
 npm run dev:server
 npm run build
-npm run lint
+npm run preview
 ```
 
-The Vite dev server proxies `/api/*` to the local Express server on port `8787`.
+## Environment Variables
+
+```bash
+OPENAI_API_KEY=your_openai_api_key_here
+PORT=8787
+```
+
+## Structure
+
+```text
+api/
+└─ realtime-session.ts
+
+server/
+├─ index.ts
+└─ realtimeSession.ts
+
+src/
+├─ App.tsx
+├─ main.tsx
+├─ styles.css
+├─ components/
+│  ├─ BootSequence.tsx
+│  ├─ ControlPanel.tsx
+│  ├─ HudShowcase.tsx
+│  ├─ StatusPanel.tsx
+│  └─ TranscriptPanel.tsx
+├─ hooks/
+│  ├─ useClapDetection.ts
+│  └─ useRealtimeVoice.ts
+└─ utils/
+   ├─ audioGreeting.ts
+   ├─ constants.ts
+   └─ windowLauncher.ts
+```
 
 ## How It Works
 
-- `Start JARVIS` requests microphone permission, pre-opens popup shells, and starts clap listening.
-- Clap detection uses energy and peak analysis with configurable threshold, refractory period, double-clap window, and a rolling noise floor.
-- After two valid claps:
-  - the app speaks a deterministic greeting with `SpeechSynthesis`
-  - attempts multi-screen placement with `window.getScreenDetails()`
-  - falls back to single-screen left/right split if unsupported
-  - initializes OpenAI Realtime voice over WebRTC
+1. 사용자가 `Start JARVIS`를 누릅니다.
+2. 앱이 마이크 권한을 요청하고, 팝업 창을 미리 엽니다.
+3. `useClapDetection.ts`가 더블 클랩을 감지합니다.
+4. 인사 음성을 재생하고 보조 창을 띄웁니다.
+5. `useRealtimeVoice.ts`가 Realtime 세션을 열어 음성 대화로 이어집니다.
 
-## Notes and Constraints
+## Edit Points
 
-- Browser popup rules still apply. The app pre-opens blank windows during the user click to reduce blocking, but some browsers may still restrict window placement.
-- Browser APIs cannot guarantee true OS-level snapping or exact desktop window management. The code only requests approximate position and size through browser-supported window controls.
-- `window.getScreenDetails()` is currently limited to supported browsers and user permission. When unavailable, the app uses a single-screen split fallback.
-- The greeting voice uses the browser's speech engine, so the exact timbre depends on the OS and installed voices.
-- Realtime voice requires a valid OpenAI API key on the server. The browser never receives the long-lived secret key directly.
+- 클랩 감지 로직 수정: `src/hooks/useClapDetection.ts`
+- Realtime 음성 연결 수정: `src/hooks/useRealtimeVoice.ts`
+- 외부 창 실행 로직 수정: `src/utils/windowLauncher.ts`
+- 로컬 세션 서버 수정: `server/realtimeSession.ts`
+- Vercel 함수 수정: `api/realtime-session.ts`
+- 전체 JARVIS UI 수정: `src/styles.css`
 
-## Vercel Deployment
+## Notes
 
-- Keep `OPENAI_API_KEY` in Vercel environment variables.
-- The `api/realtime-session.ts` route can be deployed as a serverless function.
-- The frontend remains static and calls `/api/realtime-session` on the same origin.
+- 브라우저 팝업 정책에 따라 창 열기 동작은 제한될 수 있습니다.
+- 정확한 OS 레벨 창 배치는 브라우저 API 한계가 있습니다.
+- Vercel 배포 시에도 `OPENAI_API_KEY`는 서버 환경변수로만 관리해야 합니다.
