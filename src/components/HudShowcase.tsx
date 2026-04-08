@@ -80,7 +80,9 @@ export function HudShowcase({
               <div
                 key={label}
                 className="orbit-module"
-                style={{ transform: `rotate(${angle}deg) translateY(-214px)` }}
+                style={{
+                  transform: `rotate(${angle}deg) translateY(calc(var(--showcase-orbit-radius, 214px) * -1))`,
+                }}
               >
                 <span>{label}</span>
               </div>
