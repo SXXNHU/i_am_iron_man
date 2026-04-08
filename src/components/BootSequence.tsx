@@ -5,11 +5,13 @@ type BootSequenceProps = {
 }
 
 const bootMilestones = [
-  'Calibrating arc lattice',
-  'Sequencing servo clusters',
-  'Aligning flight surfaces',
-  'Bringing aide core online',
+  'Optical lattice synchronizing',
+  'Servo deck indexing',
+  'Voice bridge stabilizing',
+  'Assistant core awakening',
 ] as const
+
+const cellCount = 18
 
 export function BootSequence({ onComplete }: BootSequenceProps) {
   const [progress, setProgress] = useState(0)
@@ -23,7 +25,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
 
     const tick = () => {
       const elapsed = performance.now() - startedAt
-      const nextProgress = Math.min(100, (elapsed / 4600) * 100)
+      const nextProgress = Math.min(100, (elapsed / 5000) * 100)
       setProgress(nextProgress)
       setPhaseIndex(
         Math.min(
@@ -38,7 +40,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
       }
 
       setIsLeaving(true)
-      leaveTimer = window.setTimeout(onComplete, 600)
+      leaveTimer = window.setTimeout(onComplete, 650)
     }
 
     frameId = window.requestAnimationFrame(tick)
@@ -65,58 +67,60 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
     [phaseIndex],
   )
 
+  const activeCellCount = Math.round((progress / 100) * cellCount)
+
   return (
     <div className={`boot-overlay${isLeaving ? ' leaving' : ''}`}>
       <div className="boot-grid" />
       <div className="boot-vignette" />
+      <div className="boot-stars" />
 
       <section className="boot-stage">
         <div className="boot-core">
-          <div className="boot-ring boot-ring-outer" />
-          <div className="boot-ring boot-ring-middle" />
-          <div className="boot-ring boot-ring-inner" />
-          <div className="boot-scan" />
-          <div className="boot-diamond" />
+          <div className="boot-orbit orbit-shell-1" />
+          <div className="boot-orbit orbit-shell-2" />
+          <div className="boot-orbit orbit-shell-3" />
+          <div className="boot-orbit orbit-shell-4" />
+          <div className="boot-dot-ring" />
+          <div className="boot-wire-sphere" />
+          <div className="boot-reticle reticle-h" />
+          <div className="boot-reticle reticle-v" />
+          <div className="boot-scan-bar" />
 
-          <div className="boot-assembly">
-            <div className="boot-assembly-bar">
-              <div className="boot-assembly-fill" style={{ width: `${progress}%` }} />
-              <div className="boot-assembly-stripes" />
-            </div>
-            <div className="boot-assembly-node">
-              <span>{Math.round(progress)}</span>
+          <div className="boot-center-core">
+            <div className="boot-center-disc disc-outer" />
+            <div className="boot-center-disc disc-mid" />
+            <div className="boot-center-disc disc-inner" />
+            <div className="boot-center-label">
+              <span>JARVIS</span>
+              <strong>{Math.round(progress)}%</strong>
             </div>
           </div>
 
-          <div className="boot-shards">
-            <span className="boot-shard shard-top-left" />
-            <span className="boot-shard shard-top-right" />
-            <span className="boot-shard shard-bottom-left" />
-            <span className="boot-shard shard-bottom-right" />
-            <span className="boot-shard shard-left" />
-            <span className="boot-shard shard-right" />
-          </div>
+          <div className="boot-side-mark side-mark-left" />
+          <div className="boot-side-mark side-mark-right" />
+          <div className="boot-side-mark side-mark-top" />
+          <div className="boot-side-mark side-mark-bottom" />
 
-          <div className="boot-arc-reactor">
-            <div className="boot-arc-shell" />
-            <div className="boot-arc-blades">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
+          <div className="boot-battery-panel">
+            <div className="boot-battery-grid">
+              {Array.from({ length: cellCount }, (_, index) => (
+                <span
+                  key={index}
+                  className={`boot-battery-cell${index < activeCellCount ? ' active' : ''}`}
+                  style={{ animationDelay: `${index * 90}ms` }}
+                />
+              ))}
             </div>
-            <div className="boot-arc-center" />
           </div>
         </div>
 
         <div className="boot-copy">
           <span className="boot-kicker">Desktop Aide Initialization</span>
-          <h2>Assembling Interface Matrix</h2>
+          <h2>Neural Interface Sequencing</h2>
           <p>
-            Mechanical subsystems, optical rings, and assistant channels are
-            phasing into alignment.
+            Arc channels, visual reticles, and command surfaces are phasing into
+            a coherent assistant shell.
           </p>
         </div>
 
@@ -125,8 +129,16 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
             <span>Boot Sequence</span>
             <strong>{Math.round(progress)}%</strong>
           </div>
-          <div className="boot-progress-track">
-            <div className="boot-progress-fill" style={{ width: `${progress}%` }} />
+          <div className="boot-progress-track segmented">
+            <div className="boot-progress-segments">
+              {Array.from({ length: cellCount }, (_, index) => (
+                <span
+                  key={index}
+                  className={`boot-progress-segment${index < activeCellCount ? ' active' : ''}`}
+                  style={{ animationDelay: `${index * 90}ms` }}
+                />
+              ))}
+            </div>
           </div>
           <div className="boot-milestones">
             {highlightedMilestones.map(({ milestone, state }) => (
