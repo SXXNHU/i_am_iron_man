@@ -35,7 +35,7 @@ export type LaunchPreparation = {
   chatWindow: Window | null
   followupYoutubeRect: { height: number; left: number; top: number; width: number } | null
   mainYoutubeWindow: Window | null
-  status: 'prepared' | 'blocked'
+  status: 'prepared' | 'blocked' | 'prepared-with-fallback'
   youtubeSwapStartedAt: number | null
   youtubeSwapTimeoutId: number | null
   youtubeSwapRetryIntervalId: number | null
@@ -91,7 +91,7 @@ function getCenteredRect(screen: ScreenDetailed) {
 }
 
 function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
-  if (!prepared?.youtubeWindow || !prepared.mainYoutubeWindow) {
+  if (!prepared?.youtubeWindow) {
     return
   }
 
@@ -108,12 +108,18 @@ function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
   const openSecondVideoWindow = () => {
     const rect = prepared.followupYoutubeRect
 
-    if (!rect || !prepared.mainYoutubeWindow || prepared.mainYoutubeWindow.closed) {
+    if (!rect) {
       return
     }
 
-    openFollowupYoutubeWindow(prepared, rect)
-    ensureWindowVisible(prepared.mainYoutubeWindow)
+    if (prepared.mainYoutubeWindow && !prepared.mainYoutubeWindow.closed) {
+      openFollowupYoutubeWindow(prepared, rect)
+      ensureWindowVisible(prepared.mainYoutubeWindow)
+    } else {
+      moveAndLoad(prepared.youtubeWindow, YOUTUBE_URL, rect)
+      ensureWindowVisible(prepared.youtubeWindow)
+    }
+
     prepared.youtubeSwapTimeoutId = null
     prepared.youtubeSwapStartedAt = null
 
@@ -151,22 +157,29 @@ export function prepareLaunchWindows(): LaunchPreparation {
     'jarvis-youtube-shell',
     'popup=yes,width=720,height=900',
   )
-  const mainYoutubeWindow = window.open(
-    '',
-    'jarvis-youtube-followup-shell',
-    'popup=yes,width=720,height=900',
-  )
   const chatWindow = window.open(
     '',
     'jarvis-chatgpt-shell',
     'popup=yes,width=720,height=900',
   )
+  const mainYoutubeWindow = window.open(
+    '',
+    'jarvis-youtube-followup-shell',
+    'popup=yes,width=720,height=900',
+  )
+
+  const status =
+    youtubeWindow && chatWindow && mainYoutubeWindow
+      ? 'prepared'
+      : youtubeWindow && chatWindow
+        ? 'prepared-with-fallback'
+        : 'blocked'
 
   return {
     youtubeWindow,
     mainYoutubeWindow,
     chatWindow,
-    status: youtubeWindow && mainYoutubeWindow && chatWindow ? 'prepared' : 'blocked',
+    status,
     followupYoutubeRect: null,
     youtubeSwapStartedAt: null,
     youtubeSwapTimeoutId: null,

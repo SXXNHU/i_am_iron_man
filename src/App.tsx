@@ -35,7 +35,12 @@ export type AppState =
   | 'error'
 
 type MicPermissionState = 'unknown' | 'granted' | 'denied'
-type PopupState = 'idle' | 'prepared' | 'blocked' | 'opened'
+type PopupState =
+  | 'idle'
+  | 'prepared'
+  | 'prepared-with-fallback'
+  | 'blocked'
+  | 'opened'
 type GreetingKey = keyof typeof GREETING_OPTIONS
 
 function App() {
