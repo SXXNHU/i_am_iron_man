@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'D2Coding';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_three@1.0/D2Coding.woff')
+    format('woff');
+  font-weight: normal;
+  font-display: swap;
+}
+
 :root {
   font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
   color: #eafcff;
@@ -983,6 +991,7 @@ select {
   position: relative;
   width: min(1180px, calc(100vw - 96px));
   padding: 36px;
+  font-family: 'D2Coding', 'Segoe UI', 'Helvetica Neue', sans-serif;
   border: 1px solid rgba(89, 245, 255, 0.24);
   border-radius: 28px;
   background:
@@ -1220,6 +1229,7 @@ h1 {
 .permission-modal {
   width: min(560px, calc(100vw - 48px));
   padding: 28px;
+  font-family: 'D2Coding', 'Segoe UI', 'Helvetica Neue', sans-serif;
   border-radius: 24px;
   border: 1px solid rgba(89, 245, 255, 0.28);
   background:
