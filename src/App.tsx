@@ -48,9 +48,9 @@ type PopupState =
   | 'prepared-with-fallback'
   | 'blocked'
   | 'opened'
-type GreetingKey = keyof typeof GREETING_OPTIONS
 
 function App() {
+  const greetingText = GREETING_OPTIONS[DEFAULT_GREETING_KEY]
   const [appState, setAppState] = useState<AppState>('idle')
   const [micPermission, setMicPermission] =
     useState<MicPermissionState>('unknown')
@@ -60,7 +60,6 @@ function App() {
     useState<PermissionFlag>('unknown')
   const [popupState, setPopupState] = useState<PopupState>('idle')
   const [monitorMode, setMonitorMode] = useState<MonitorMode>('unknown')
-  const [greetingKey, setGreetingKey] = useState<GreetingKey>(DEFAULT_GREETING_KEY)
   const [supportMessage, setSupportMessage] = useState('')
   const [lastError, setLastError] = useState('')
   const [hasLaunched, setHasLaunched] = useState(false)
@@ -332,7 +331,7 @@ function App() {
       setAppState('greeting')
       focusLaunchWindows(windowPrepRef.current)
 
-      const greetingPromise = speakGreeting(GREETING_OPTIONS[greetingKey])
+      const greetingPromise = speakGreeting(greetingText)
       await initRealtimeVoiceSession(stream)
       await greetingPromise
       setAppState('voice_ready')
@@ -464,19 +463,7 @@ function App() {
           </div>
           <div className="support-callout">
             <span className="support-label">Greeting</span>
-            <select
-              className="voice-select"
-              value={greetingKey}
-              onChange={(event) =>
-                setGreetingKey(event.target.value as GreetingKey)
-              }
-            >
-              {Object.entries(GREETING_OPTIONS).map(([key, value]) => (
-                <option key={key} value={key}>
-                  {value}
-                </option>
-              ))}
-            </select>
+            <p>Welcome back, sir</p>
           </div>
         </div>
 
