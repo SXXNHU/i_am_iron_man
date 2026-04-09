@@ -185,10 +185,10 @@ function writeYoutubePlayerShell(target: Window | null) {
     <div class="overlay" id="jarvis-overlay">
       <div class="overlay-card">
         <strong>Channel Armed</strong>
-        <span>Muted playback is primed and waiting for the double clap.</span>
+        <span>Zero-volume playback is primed and waiting for the double clap.</span>
       </div>
     </div>
-    <div class="status" id="jarvis-status">Priming muted autoplay from the Start JARVIS click.</div>
+    <div class="status" id="jarvis-status">Priming zero-volume autoplay from the Start JARVIS click.</div>
     <script>
       let player;
       let playerReady = false;
@@ -203,10 +203,10 @@ function writeYoutubePlayerShell(target: Window | null) {
         }
       }
 
-      function startMutedPlayback() {
+      function startPrimedPlayback() {
         if (!player) return;
-        try { player.setVolume(100); } catch (error) {}
-        try { player.mute(); } catch (error) {}
+        try { player.unMute(); } catch (error) {}
+        try { player.setVolume(0); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
 
@@ -223,9 +223,8 @@ function writeYoutubePlayerShell(target: Window | null) {
         }
 
         try { player.setVolume(100); } catch (error) {}
-        try { player.unMute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
-        setStatus('Activated with volume 100. If the browser still blocks audio, click once inside the popup.');
+        setStatus('Activated with volume 100.');
       }
 
       window.__jarvisActivateYoutube = activatePlayback;
@@ -239,7 +238,7 @@ function writeYoutubePlayerShell(target: Window | null) {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
-            mute: 1,
+            mute: 0,
             enablejsapi: 1,
             origin: '${window.location.origin}'
           },
@@ -252,8 +251,8 @@ function writeYoutubePlayerShell(target: Window | null) {
                 iframe.setAttribute('allowfullscreen', 'true');
               } catch (error) {}
 
-              startMutedPlayback();
-              window.setTimeout(startMutedPlayback, 220);
+              startPrimedPlayback();
+              window.setTimeout(startPrimedPlayback, 220);
 
               if (activationRequested) {
                 window.setTimeout(activatePlayback, 60);
@@ -266,13 +265,13 @@ function writeYoutubePlayerShell(target: Window | null) {
                 if (activationRequested) {
                   window.setTimeout(activatePlayback, 60);
                 } else {
-                  setStatus('Muted autoplay is live. Waiting for the double clap to reveal audio.');
+                  setStatus('Zero-volume autoplay is live. Waiting for the double clap to raise audio.');
                 }
               }
 
               if (event.data === YT.PlayerState.PAUSED && !activationRequested && playbackStarted) {
-                setStatus('Muted autoplay paused unexpectedly. Re-priming playback.');
-                window.setTimeout(startMutedPlayback, 80);
+                setStatus('Primed autoplay paused unexpectedly. Re-priming playback.');
+                window.setTimeout(startPrimedPlayback, 80);
               }
             }
           }
