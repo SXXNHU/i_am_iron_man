@@ -1,4 +1,4 @@
-export const YOUTUBE_FOLLOWUP_VIDEO_ID = 'qRrElw4TSB4'
+export const YOUTUBE_FOLLOWUP_VIDEO_ID = 'BlNHLQVcoLQ'
 export const YOUTUBE_INTRO_VIDEO_ID = 'LuuOpozKbvE'
 export const YOUTUBE_SWAP_DELAY_MS = 7_000
 export const CHATGPT_URL = 'https://chatgpt.com'
