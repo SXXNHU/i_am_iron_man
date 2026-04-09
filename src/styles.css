@@ -115,7 +115,7 @@ select {
   justify-items: center;
   gap: 22px;
   width: min(980px, calc(100vw - 120px));
-  transform: translateY(-452px);
+  transform: translateY(-552px);
 }
 
 .boot-core {
