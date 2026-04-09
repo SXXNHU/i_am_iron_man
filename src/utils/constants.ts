@@ -2,6 +2,8 @@ export const YOUTUBE_FOLLOWUP_VIDEO_ID = 'BlNHLQVcoLQ'
 export const YOUTUBE_INTRO_VIDEO_ID = 'LuuOpozKbvE'
 export const YOUTUBE_SWAP_DELAY_MS = 7_000
 export const CHATGPT_URL = 'https://chatgpt.com'
+export const CHATGPT_PROMPT =
+  "Wake up! Daddy's Home. What's the most big topic(news) in global, in national"
 
 export const GREETING_OPTIONS = {
   polished:

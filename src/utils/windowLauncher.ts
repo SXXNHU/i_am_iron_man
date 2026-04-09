@@ -1,4 +1,5 @@
 import {
+  CHATGPT_PROMPT,
   CHATGPT_URL,
   WINDOW_MARGIN,
   YOUTUBE_FOLLOWUP_VIDEO_ID,
@@ -34,6 +35,12 @@ export type LaunchPreparation = {
   chatWindow: Window | null
   status: 'prepared' | 'blocked'
   youtubeWindow: Window | null
+}
+
+function buildChatGptLaunchUrl() {
+  const url = new URL(CHATGPT_URL)
+  url.searchParams.set('q', CHATGPT_PROMPT)
+  return url.toString()
 }
 
 function writeLaunchShell(
@@ -389,7 +396,7 @@ export function openWindowsSingleScreen(
   moveWindow(prepared?.chatWindow ?? null, rightRect)
 
   activatePreparedYoutubeWindow(prepared?.youtubeWindow ?? null)
-  prepared?.chatWindow?.location.replace(CHATGPT_URL)
+  prepared?.chatWindow?.location.replace(buildChatGptLaunchUrl())
 
   ensureWindowVisible(prepared?.chatWindow ?? null)
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
