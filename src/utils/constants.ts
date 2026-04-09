@@ -3,7 +3,7 @@ export const YOUTUBE_INTRO_VIDEO_ID = 'LuuOpozKbvE'
 export const YOUTUBE_SWAP_DELAY_MS = 7_000
 export const CHATGPT_URL = 'https://chatgpt.com'
 export const CHATGPT_PROMPT =
-  "Wake up! Daddy's Home. Now, JARVIS—bring me the biggest headlines worldwide and at home."
+  "Wake up! Daddy's Home. Now, JARVIS, bring me the biggest headlines worldwide and at home."
 
 export const GREETING_OPTIONS = {
   polished:

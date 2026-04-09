@@ -40,6 +40,7 @@ export type LaunchPreparation = {
 function buildChatGptLaunchUrl() {
   const url = new URL(CHATGPT_URL)
   url.searchParams.set('q', CHATGPT_PROMPT)
+  url.searchParams.set('hints', 'search')
   return url.toString()
 }
 
@@ -204,10 +205,10 @@ function writeYoutubePlayerShell(target: Window | null) {
     <div class="overlay" id="jarvis-overlay">
       <div class="overlay-card">
         <strong>Channel Armed</strong>
-        <span>Playback is being primed now so the left screen can go live on the double clap.</span>
+        <span>Muted playback is being primed now so the left screen can go live on the double clap.</span>
       </div>
     </div>
-    <div class="status" id="jarvis-status">Priming zero-volume autoplay from the Start JARVIS click.</div>
+    <div class="status" id="jarvis-status">Priming muted autoplay from the Start JARVIS click.</div>
     <script>
       let player;
       let playerReady = false;
@@ -224,8 +225,8 @@ function writeYoutubePlayerShell(target: Window | null) {
 
       function startPrimedPlayback() {
         if (!player) return;
-        try { player.unMute(); } catch (error) {}
-        try { player.setVolume(0); } catch (error) {}
+        try { player.setVolume(100); } catch (error) {}
+        try { player.mute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
 
@@ -242,6 +243,7 @@ function writeYoutubePlayerShell(target: Window | null) {
         }
 
         try { player.setVolume(100); } catch (error) {}
+        try { player.unMute(); } catch (error) {}
         try {
           const state = player.getPlayerState ? player.getPlayerState() : -1;
           if (state !== YT.PlayerState.PLAYING) {
@@ -265,7 +267,7 @@ function writeYoutubePlayerShell(target: Window | null) {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
-            mute: 0,
+            mute: 1,
             enablejsapi: 1,
             origin: '${window.location.origin}'
           },
@@ -292,7 +294,7 @@ function writeYoutubePlayerShell(target: Window | null) {
                 if (activationRequested) {
                   window.setTimeout(activatePlayback, 60);
                 } else {
-                  setStatus('Zero-volume autoplay is live. Waiting for the double clap to raise audio.');
+                  setStatus('Muted autoplay is live. Waiting for the double clap to reveal audio.');
                 }
               }
 
