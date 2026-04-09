@@ -2,8 +2,6 @@ import {
   CHATGPT_URL,
   WINDOW_MARGIN,
   YOUTUBE_FOLLOWUP_VIDEO_ID,
-  YOUTUBE_INTRO_VIDEO_ID,
-  YOUTUBE_SWAP_DELAY_MS,
 } from './constants'
 
 declare global {
@@ -33,12 +31,7 @@ export type MonitorMode =
 
 export type LaunchPreparation = {
   chatWindow: Window | null
-  followupYoutubeRect: { height: number; left: number; top: number; width: number } | null
-  followupYoutubeTab: Window | null
-  status: 'prepared' | 'blocked' | 'prepared-with-fallback'
-  youtubeSwapStartedAt: number | null
-  youtubeSwapTimeoutId: number | null
-  youtubeSwapRetryIntervalId: number | null
+  status: 'prepared' | 'blocked'
   youtubeWindow: Window | null
 }
 
@@ -111,11 +104,7 @@ function writeLaunchShell(
   }
 }
 
-function writeYoutubePlayerShell(
-  target: Window | null,
-  title: string,
-  videoId: string,
-) {
+function writeYoutubePlayerShell(target: Window | null) {
   if (!target || target.closed) {
     return
   }
@@ -126,7 +115,7 @@ function writeYoutubePlayerShell(
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>${title}</title>
+    <title>Jarvis Gaming Sequence</title>
     <style>
       :root { color-scheme: dark; }
       html, body {
@@ -152,28 +141,12 @@ function writeYoutubePlayerShell(
         border-radius: 12px;
         background: rgba(3, 15, 24, 0.7);
         backdrop-filter: blur(10px);
-        box-shadow: 0 0 20px rgba(89, 245, 255, 0.08);
-      }
-      .status strong {
-        display: block;
-        margin-bottom: 4px;
-        color: #59f5ff;
-        font-size: 12px;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-      }
-      .status span {
-        color: rgba(232, 251, 255, 0.8);
-        font-size: 13px;
       }
     </style>
   </head>
   <body>
     <div id="player"></div>
-    <div class="status">
-      <strong>Jarvis Video</strong>
-      <span>Attempting playback at volume 100.</span>
-    </div>
+    <div class="status">Attempting autoplay at volume 100.</div>
     <script>
       let player;
       let retries = 0;
@@ -183,13 +156,13 @@ function writeYoutubePlayerShell(
         try { player.unMute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
         retries += 1;
-        if (retries < 8) {
-          window.setTimeout(forcePlayback, 450);
+        if (retries < 10) {
+          window.setTimeout(forcePlayback, 400);
         }
       }
       function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
-          videoId: '${videoId}',
+          videoId: '${YOUTUBE_FOLLOWUP_VIDEO_ID}',
           playerVars: {
             autoplay: 1,
             controls: 1,
@@ -235,183 +208,86 @@ function moveWindow(
 
   target.moveTo(rect.left, rect.top)
   target.resizeTo(rect.width, rect.height)
-  ensureWindowVisible(target)
 }
 
-function reserveFollowupYoutubeTab() {
-  try {
-    const followupTab = window.open('', 'jarvis-youtube-followup-tab')
-    writeLaunchShell(
-      followupTab,
-      'Follow-up Video Armed',
-      'Stand by. The second YouTube sequence will attach here after the intro finishes.',
-    )
-    return followupTab
-  } catch {
-    return null
-  }
-}
+function getHalfScreenRects() {
+  const screenLeft = typeof window.screenLeft === 'number' ? window.screenLeft : 0
+  const screenTop = typeof window.screenTop === 'number' ? window.screenTop : 0
+  const width = Math.max(480, Math.floor(window.screen.availWidth / 2) - WINDOW_MARGIN)
+  const height = Math.max(720, window.screen.availHeight - WINDOW_MARGIN * 2)
+  const top = screenTop + WINDOW_MARGIN
 
-function navigateFollowupYoutubeTab(prepared: LaunchPreparation | null) {
-  if (!prepared?.followupYoutubeTab) {
-    throw new Error('Follow-up YouTube tab was unavailable before launch.')
-  }
-
-  writeYoutubePlayerShell(
-    prepared.followupYoutubeTab,
-    'Jarvis Follow-up Sequence',
-    YOUTUBE_FOLLOWUP_VIDEO_ID,
-  )
-  ensureWindowVisible(prepared.followupYoutubeTab)
-}
-
-function getCenteredRect(screen: ScreenDetailed) {
   return {
-    left: screen.availLeft + WINDOW_MARGIN,
-    top: screen.availTop + WINDOW_MARGIN,
-    width: Math.max(720, screen.availWidth - WINDOW_MARGIN * 2),
-    height: Math.max(720, screen.availHeight - WINDOW_MARGIN * 2),
+    leftRect: {
+      left: screenLeft + WINDOW_MARGIN,
+      top,
+      width,
+      height,
+    },
+    rightRect: {
+      left: screenLeft + width + WINDOW_MARGIN,
+      top,
+      width,
+      height,
+    },
   }
 }
 
-function scheduleYoutubeSwap(prepared: LaunchPreparation | null) {
-  if (!prepared?.youtubeWindow) {
-    return
+export function refocusControlWindow() {
+  try {
+    window.focus()
+  } catch {
+    // Ignore browser-specific focus errors.
   }
-
-  if (prepared.youtubeSwapTimeoutId) {
-    window.clearTimeout(prepared.youtubeSwapTimeoutId)
-  }
-
-  if (prepared.youtubeSwapRetryIntervalId) {
-    window.clearInterval(prepared.youtubeSwapRetryIntervalId)
-  }
-
-  prepared.youtubeSwapStartedAt = Date.now()
-
-  const openSecondVideoTab = () => {
-    if (prepared.followupYoutubeTab && !prepared.followupYoutubeTab.closed) {
-      navigateFollowupYoutubeTab(prepared)
-    } else {
-      writeYoutubePlayerShell(
-        prepared.youtubeWindow,
-        'Jarvis Follow-up Sequence',
-        YOUTUBE_FOLLOWUP_VIDEO_ID,
-      )
-      ensureWindowVisible(prepared.youtubeWindow)
-    }
-
-    prepared.youtubeSwapTimeoutId = null
-    prepared.youtubeSwapStartedAt = null
-
-    if (prepared.youtubeSwapRetryIntervalId) {
-      window.clearInterval(prepared.youtubeSwapRetryIntervalId)
-      prepared.youtubeSwapRetryIntervalId = null
-    }
-  }
-
-  prepared.youtubeSwapTimeoutId = window.setTimeout(
-    openSecondVideoTab,
-    YOUTUBE_SWAP_DELAY_MS,
-  )
-
-  prepared.youtubeSwapRetryIntervalId = window.setInterval(() => {
-    if (!prepared.youtubeWindow || prepared.youtubeWindow.closed) {
-      return
-    }
-
-    const startedAt = prepared.youtubeSwapStartedAt
-    if (!startedAt) {
-      return
-    }
-
-    if (Date.now() - startedAt >= YOUTUBE_SWAP_DELAY_MS) {
-      openSecondVideoTab()
-    }
-  }, 1000)
 }
 
 export function prepareLaunchWindows(): LaunchPreparation {
   const youtubeWindow = window.open(
     '',
     'jarvis-youtube-shell',
-    'popup=yes,width=720,height=900',
+    'popup=yes,width=320,height=180,left=-10000,top=0',
   )
   const chatWindow = window.open(
     '',
     'jarvis-chatgpt-shell',
-    'popup=yes,width=720,height=900',
+    'popup=yes,width=320,height=180,left=-10000,top=0',
   )
 
   writeLaunchShell(
     youtubeWindow,
-    'Video Channel Armed',
-    'Waiting for the double-clap trigger before loading the intro video.',
+    'Gaming Channel Armed',
+    'Waiting for the double-clap trigger before routing the gaming soundtrack.',
   )
   writeLaunchShell(
     chatWindow,
     'Chat Channel Armed',
-    'This window is reserved for ChatGPT and will route after activation.',
+    'Waiting for the double-clap trigger before routing ChatGPT.',
   )
-
-  const followupYoutubeTab = reserveFollowupYoutubeTab()
-
-  const status =
-    youtubeWindow && chatWindow && followupYoutubeTab
-      ? 'prepared'
-      : youtubeWindow && chatWindow
-        ? 'prepared-with-fallback'
-        : 'blocked'
 
   return {
     youtubeWindow,
-    followupYoutubeTab,
     chatWindow,
-    status,
-    followupYoutubeRect: null,
-    youtubeSwapStartedAt: null,
-    youtubeSwapTimeoutId: null,
-    youtubeSwapRetryIntervalId: null,
+    status: youtubeWindow && chatWindow ? 'prepared' : 'blocked',
   }
 }
 
 export function openWindowsSingleScreen(
   prepared: LaunchPreparation | null,
 ): MonitorMode {
-  const screenLeft = typeof window.screenLeft === 'number' ? window.screenLeft : 0
-  const screenTop = typeof window.screenTop === 'number' ? window.screenTop : 0
-  const width = Math.max(480, Math.floor(window.screen.availWidth / 2) - WINDOW_MARGIN)
-  const height = Math.max(720, window.screen.availHeight - WINDOW_MARGIN * 2)
-  const top = screenTop + WINDOW_MARGIN
-  const leftRect = {
-    left: screenLeft + WINDOW_MARGIN,
-    top,
-    width,
-    height,
-  }
-  const rightRect = {
-    left: screenLeft + width + WINDOW_MARGIN,
-    top,
-    width,
-    height,
-  }
+  const { leftRect, rightRect } = getHalfScreenRects()
 
-  moveWindow(prepared?.chatWindow ?? null, rightRect)
-  prepared?.chatWindow?.location.replace(CHATGPT_URL)
   moveWindow(prepared?.youtubeWindow ?? null, leftRect)
-  writeYoutubePlayerShell(
-    prepared?.youtubeWindow ?? null,
-    'Jarvis Intro Sequence',
-    YOUTUBE_INTRO_VIDEO_ID,
-  )
-  if (prepared) {
-    prepared.followupYoutubeRect = leftRect
-  }
+  moveWindow(prepared?.chatWindow ?? null, rightRect)
+
+  writeYoutubePlayerShell(prepared?.youtubeWindow ?? null)
+  prepared?.chatWindow?.location.replace(CHATGPT_URL)
+
+  ensureWindowVisible(prepared?.chatWindow ?? null)
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 260)
+  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 120)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 220)
+  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 360)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
-  scheduleYoutubeSwap(prepared)
 
   return 'single-screen'
 }
@@ -419,63 +295,20 @@ export function openWindowsSingleScreen(
 export async function openWindowsMultiScreen(
   prepared: LaunchPreparation | null,
 ): Promise<MonitorMode> {
-  if (!window.getScreenDetails) {
-    return openWindowsSingleScreen(prepared)
-  }
-
-  const details = await window.getScreenDetails()
-
-  if (details.screens.length < 2) {
-    return openWindowsSingleScreen(prepared)
-  }
-
-  const [firstScreen, secondScreen] = details.screens
-  const youtubeRect = getCenteredRect(firstScreen)
-
-  moveWindow(prepared?.chatWindow ?? null, getCenteredRect(secondScreen))
-  prepared?.chatWindow?.location.replace(CHATGPT_URL)
-  moveWindow(prepared?.youtubeWindow ?? null, youtubeRect)
-  writeYoutubePlayerShell(
-    prepared?.youtubeWindow ?? null,
-    'Jarvis Intro Sequence',
-    YOUTUBE_INTRO_VIDEO_ID,
-  )
-  if (prepared) {
-    prepared.followupYoutubeRect = youtubeRect
-  }
-  ensureWindowVisible(prepared?.youtubeWindow ?? null)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 260)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
-  scheduleYoutubeSwap(prepared)
-
-  return 'multi-screen'
+  // Force the requested left/right split even when multi-screen APIs are available.
+  return openWindowsSingleScreen(prepared)
 }
 
 export function focusLaunchWindows(prepared: LaunchPreparation | null) {
+  ensureWindowVisible(prepared?.chatWindow ?? null)
   ensureWindowVisible(prepared?.youtubeWindow ?? null)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 120)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 260)
+  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 120)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 220)
+  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 360)
   window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
-  if (prepared?.youtubeSwapTimeoutId) {
-    window.clearTimeout(prepared.youtubeSwapTimeoutId)
-    prepared.youtubeSwapTimeoutId = null
-  }
-
-  if (prepared?.youtubeSwapRetryIntervalId) {
-    window.clearInterval(prepared.youtubeSwapRetryIntervalId)
-    prepared.youtubeSwapRetryIntervalId = null
-  }
-
-  if (prepared) {
-    prepared.youtubeSwapStartedAt = null
-    prepared.followupYoutubeRect = null
-  }
-
-  prepared?.followupYoutubeTab?.close()
   prepared?.youtubeWindow?.close()
   prepared?.chatWindow?.close()
 }

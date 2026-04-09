@@ -4,8 +4,10 @@ export const YOUTUBE_SWAP_DELAY_MS = 7_000
 export const CHATGPT_URL = 'https://chatgpt.com'
 
 export const GREETING_OPTIONS = {
-  polished: 'Welcome back, boss. What are we building today?',
-  formal: 'Welcome, sir. What shall we do today?',
+  polished:
+    'Welcome back, sir. All systems for gaming will be prepared in a few minutes. For now, feel free to grab a cup of coffee and have a good day.',
+  formal:
+    'Welcome back, sir. All systems for gaming will be prepared in a few minutes. For now, feel free to grab a cup of coffee and have a good day.',
 } as const
 
 export const DEFAULT_GREETING_KEY = 'polished'
