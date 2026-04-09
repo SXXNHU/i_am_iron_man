@@ -90,12 +90,6 @@ export function HudShowcase({
           })}
         </div>
 
-        <div className="showcase-metrics">
-          <span className="metric metric-cyan">71%</span>
-          <span className="metric metric-cyan">44%</span>
-          <span className="metric metric-red">23%</span>
-        </div>
-
         <div className="showcase-core-center">
           <div className="core-center-ring" />
           <div className="core-center-ring secondary" />
