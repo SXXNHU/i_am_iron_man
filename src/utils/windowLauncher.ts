@@ -175,7 +175,15 @@ function writeYoutubePlayerShell(target: Window | null) {
             origin: '${window.location.origin}'
           },
           events: {
-            onReady: forcePlayback,
+            onReady: function(event) {
+              try {
+                const iframe = event.target.getIframe();
+                iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+                iframe.setAttribute('allowfullscreen', 'true');
+              } catch (error) {}
+              forcePlayback();
+              window.setTimeout(forcePlayback, 220);
+            },
             onStateChange: function(event) {
               if (!hasReachedPlayback && event.data === YT.PlayerState.PLAYING) {
                 hasReachedPlayback = true;
