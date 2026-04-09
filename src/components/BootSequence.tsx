@@ -12,6 +12,39 @@ const bootMilestones = [
 ] as const
 
 const cellCount = 32
+const bootProgressSegments = [
+  { duration: 520, from: 0, to: 18 },
+  { duration: 180, from: 18, to: 18 },
+  { duration: 760, from: 18, to: 44 },
+  { duration: 260, from: 44, to: 44 },
+  { duration: 700, from: 44, to: 71 },
+  { duration: 140, from: 71, to: 71 },
+  { duration: 940, from: 71, to: 100 },
+] as const
+
+const bootSequenceDuration = bootProgressSegments.reduce(
+  (total, segment) => total + segment.duration,
+  0,
+)
+
+function getProgressAtElapsed(elapsed: number) {
+  let consumed = 0
+
+  for (const segment of bootProgressSegments) {
+    const segmentEnd = consumed + segment.duration
+
+    if (elapsed <= segmentEnd) {
+      const segmentElapsed = elapsed - consumed
+      const progressRatio = Math.max(0, segmentElapsed) / segment.duration
+
+      return segment.from + (segment.to - segment.from) * progressRatio
+    }
+
+    consumed = segmentEnd
+  }
+
+  return 100
+}
 
 export function BootSequence({ onComplete }: BootSequenceProps) {
   const [progress, setProgress] = useState(0)
@@ -25,7 +58,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
 
     const tick = () => {
       const elapsed = performance.now() - startedAt
-      const nextProgress = Math.min(100, (elapsed / 3500) * 100)
+      const nextProgress = Math.min(100, getProgressAtElapsed(elapsed))
       setProgress(nextProgress)
       setPhaseIndex(
         Math.min(
@@ -34,7 +67,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
         ),
       )
 
-      if (nextProgress < 100) {
+      if (elapsed < bootSequenceDuration) {
         frameId = window.requestAnimationFrame(tick)
         return
       }
