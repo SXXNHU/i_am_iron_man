@@ -146,31 +146,20 @@ function writeYoutubePlayerShell(target: Window | null) {
   </head>
   <body>
     <div id="player"></div>
-    <div class="status">Starting playback and restoring volume 100.</div>
+    <div class="status">Attempting one-shot autoplay with volume 100.</div>
     <script>
       let player;
-      let retries = 0;
-      let unmuteRetries = 0;
       let hasReachedPlayback = false;
       function forcePlayback() {
         if (!player) return;
         try { player.mute(); } catch (error) {}
         try { player.setVolume(100); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
-        retries += 1;
-        if (retries < 10) {
-          window.setTimeout(forcePlayback, 400);
-        }
       }
       function restoreAudio() {
         if (!player) return;
         try { player.setVolume(100); } catch (error) {}
         try { player.unMute(); } catch (error) {}
-        try { player.playVideo(); } catch (error) {}
-        unmuteRetries += 1;
-        if (unmuteRetries < 8) {
-          window.setTimeout(restoreAudio, 350);
-        }
       }
       function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
@@ -190,7 +179,7 @@ function writeYoutubePlayerShell(target: Window | null) {
             onStateChange: function(event) {
               if (!hasReachedPlayback && event.data === YT.PlayerState.PLAYING) {
                 hasReachedPlayback = true;
-                window.setTimeout(restoreAudio, 120);
+                window.setTimeout(restoreAudio, 180);
               }
             }
           }
