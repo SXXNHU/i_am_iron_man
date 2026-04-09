@@ -6,6 +6,7 @@ import {
 
 declare global {
   interface Window {
+    __jarvisActivateYoutube?: () => void
     getScreenDetails?: () => Promise<ScreenDetails>
   }
 
@@ -127,15 +128,50 @@ function writeYoutubePlayerShell(target: Window | null) {
         color: #e8fbff;
         font-family: "Segoe UI", sans-serif;
       }
+      body {
+        position: relative;
+      }
       #player {
         width: 100vw;
         height: 100vh;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at center, rgba(89, 245, 255, 0.12), transparent 42%),
+          rgba(0, 0, 0, 0.38);
+        pointer-events: none;
+        transition: opacity 180ms ease;
+      }
+      .overlay.hidden {
+        opacity: 0;
+      }
+      .overlay-card {
+        padding: 18px 20px;
+        border: 1px solid rgba(89, 245, 255, 0.24);
+        border-radius: 16px;
+        background: rgba(3, 15, 24, 0.72);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 30px rgba(89, 245, 255, 0.08);
+        text-align: center;
+      }
+      .overlay-card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #59f5ff;
       }
       .status {
         position: fixed;
         left: 18px;
         bottom: 18px;
-        z-index: 2;
+        z-index: 4;
         padding: 10px 14px;
         border: 1px solid rgba(89, 245, 255, 0.24);
         border-radius: 12px;
@@ -146,21 +182,54 @@ function writeYoutubePlayerShell(target: Window | null) {
   </head>
   <body>
     <div id="player"></div>
-    <div class="status">Attempting one-shot autoplay with volume 100.</div>
+    <div class="overlay" id="jarvis-overlay">
+      <div class="overlay-card">
+        <strong>Channel Armed</strong>
+        <span>Muted playback is primed and waiting for the double clap.</span>
+      </div>
+    </div>
+    <div class="status" id="jarvis-status">Priming muted autoplay from the Start JARVIS click.</div>
     <script>
       let player;
-      let hasReachedPlayback = false;
-      function forcePlayback() {
+      let playerReady = false;
+      let activationRequested = false;
+      let playbackStarted = false;
+      const overlay = document.getElementById('jarvis-overlay');
+      const status = document.getElementById('jarvis-status');
+
+      function setStatus(message) {
+        if (status) {
+          status.textContent = message;
+        }
+      }
+
+      function startMutedPlayback() {
         if (!player) return;
-        try { player.mute(); } catch (error) {}
         try { player.setVolume(100); } catch (error) {}
+        try { player.mute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
-      function restoreAudio() {
+
+      function activatePlayback() {
         if (!player) return;
+        activationRequested = true;
+        if (!playerReady) {
+          setStatus('Playback activation queued until the YouTube player is ready.');
+          return;
+        }
+
+        if (overlay) {
+          overlay.classList.add('hidden');
+        }
+
         try { player.setVolume(100); } catch (error) {}
         try { player.unMute(); } catch (error) {}
+        try { player.playVideo(); } catch (error) {}
+        setStatus('Activated with volume 100. If the browser still blocks audio, click once inside the popup.');
       }
+
+      window.__jarvisActivateYoutube = activatePlayback;
+
       function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
           videoId: '${YOUTUBE_FOLLOWUP_VIDEO_ID}',
@@ -176,18 +245,34 @@ function writeYoutubePlayerShell(target: Window | null) {
           },
           events: {
             onReady: function(event) {
+              playerReady = true;
               try {
                 const iframe = event.target.getIframe();
                 iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
                 iframe.setAttribute('allowfullscreen', 'true');
               } catch (error) {}
-              forcePlayback();
-              window.setTimeout(forcePlayback, 220);
+
+              startMutedPlayback();
+              window.setTimeout(startMutedPlayback, 220);
+
+              if (activationRequested) {
+                window.setTimeout(activatePlayback, 60);
+              }
             },
             onStateChange: function(event) {
-              if (!hasReachedPlayback && event.data === YT.PlayerState.PLAYING) {
-                hasReachedPlayback = true;
-                window.setTimeout(restoreAudio, 180);
+              if (event.data === YT.PlayerState.PLAYING) {
+                playbackStarted = true;
+
+                if (activationRequested) {
+                  window.setTimeout(activatePlayback, 60);
+                } else {
+                  setStatus('Muted autoplay is live. Waiting for the double clap to reveal audio.');
+                }
+              }
+
+              if (event.data === YT.PlayerState.PAUSED && !activationRequested && playbackStarted) {
+                setStatus('Muted autoplay paused unexpectedly. Re-priming playback.');
+                window.setTimeout(startMutedPlayback, 80);
               }
             }
           }
@@ -200,6 +285,18 @@ function writeYoutubePlayerShell(target: Window | null) {
     target.document.close()
   } catch {
     // Ignore cross-window shell write failures.
+  }
+}
+
+function activatePreparedYoutubeWindow(target: Window | null) {
+  if (!target || target.closed) {
+    return
+  }
+
+  try {
+    target.__jarvisActivateYoutube?.()
+  } catch {
+    // Ignore same-origin playback activation failures.
   }
 }
 
@@ -270,11 +367,7 @@ export function prepareLaunchWindows(): LaunchPreparation {
     'popup=yes,width=320,height=180,left=-10000,top=0',
   )
 
-  writeLaunchShell(
-    youtubeWindow,
-    'Gaming Channel Armed',
-    'Waiting for the double-clap trigger before routing the gaming soundtrack.',
-  )
+  writeYoutubePlayerShell(youtubeWindow)
   writeLaunchShell(
     chatWindow,
     'Chat Channel Armed',
@@ -296,7 +389,7 @@ export function openWindowsSingleScreen(
   moveWindow(prepared?.youtubeWindow ?? null, leftRect)
   moveWindow(prepared?.chatWindow ?? null, rightRect)
 
-  writeYoutubePlayerShell(prepared?.youtubeWindow ?? null)
+  activatePreparedYoutubeWindow(prepared?.youtubeWindow ?? null)
   prepared?.chatWindow?.location.replace(CHATGPT_URL)
 
   ensureWindowVisible(prepared?.chatWindow ?? null)
