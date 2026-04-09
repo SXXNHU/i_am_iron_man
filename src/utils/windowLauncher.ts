@@ -43,6 +43,18 @@ function buildChatGptLaunchUrl() {
   return url.toString()
 }
 
+function getPrimedYoutubeRect() {
+  const screenLeft = typeof window.screenLeft === 'number' ? window.screenLeft : 0
+  const screenTop = typeof window.screenTop === 'number' ? window.screenTop : 0
+
+  return {
+    left: screenLeft + WINDOW_MARGIN,
+    top: screenTop + Math.max(24, window.screen.availHeight - 280),
+    width: 360,
+    height: 204,
+  }
+}
+
 function writeLaunchShell(
   target: Window | null,
   title: string,
@@ -192,7 +204,7 @@ function writeYoutubePlayerShell(target: Window | null) {
     <div class="overlay" id="jarvis-overlay">
       <div class="overlay-card">
         <strong>Channel Armed</strong>
-        <span>Zero-volume playback is primed and waiting for the double clap.</span>
+        <span>Playback is being primed now so the left screen can go live on the double clap.</span>
       </div>
     </div>
     <div class="status" id="jarvis-status">Priming zero-volume autoplay from the Start JARVIS click.</div>
@@ -230,7 +242,14 @@ function writeYoutubePlayerShell(target: Window | null) {
         }
 
         try { player.setVolume(100); } catch (error) {}
-        try { player.playVideo(); } catch (error) {}
+        try {
+          const state = player.getPlayerState ? player.getPlayerState() : -1;
+          if (state !== YT.PlayerState.PLAYING) {
+            player.playVideo();
+          }
+        } catch (error) {
+          try { player.playVideo(); } catch (innerError) {}
+        }
         setStatus('Activated with volume 100.');
       }
 
@@ -369,16 +388,26 @@ export function refocusControlWindow() {
 }
 
 export function prepareLaunchWindows(): LaunchPreparation {
+  const primedRect = getPrimedYoutubeRect()
   const youtubeWindow = window.open(
     '',
     'jarvis-youtube-shell',
-    'popup=yes,width=320,height=180,left=-10000,top=0',
+    `popup=yes,width=${primedRect.width},height=${primedRect.height},left=${primedRect.left},top=${primedRect.top}`,
   )
   const chatWindow = window.open(
     '',
     'jarvis-chatgpt-shell',
     'popup=yes,width=320,height=180,left=-10000,top=0',
   )
+
+  if (youtubeWindow && !youtubeWindow.closed) {
+    try {
+      youtubeWindow.moveTo(primedRect.left, primedRect.top)
+      youtubeWindow.resizeTo(primedRect.width, primedRect.height)
+    } catch {
+      // Ignore popup positioning failures while priming playback.
+    }
+  }
 
   writeYoutubePlayerShell(youtubeWindow)
   writeLaunchShell(
