@@ -11,7 +11,7 @@ const bootMilestones = [
   'Assistant core awakening',
 ] as const
 
-const cellCount = 24
+const cellCount = 32
 
 export function BootSequence({ onComplete }: BootSequenceProps) {
   const [progress, setProgress] = useState(0)
@@ -25,7 +25,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
 
     const tick = () => {
       const elapsed = performance.now() - startedAt
-      const nextProgress = Math.min(100, (elapsed / 5000) * 100)
+      const nextProgress = Math.min(100, (elapsed / 3500) * 100)
       setProgress(nextProgress)
       setPhaseIndex(
         Math.min(
@@ -124,7 +124,7 @@ export function BootSequence({ onComplete }: BootSequenceProps) {
                 <span
                   key={index}
                   className={`boot-progress-segment${index < activeCellCount ? ' active' : ''}`}
-                  style={{ animationDelay: `${index * 60}ms` }}
+                  style={{ animationDelay: `${index * 42}ms` }}
                 />
               ))}
             </div>
