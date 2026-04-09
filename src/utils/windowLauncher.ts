@@ -238,6 +238,7 @@ function writeYoutubePlayerShell(target: Window | null) {
 
       function onYouTubeIframeAPIReady() {
         player = new YT.Player('player', {
+          host: 'https://www.youtube-nocookie.com',
           videoId: '${YOUTUBE_FOLLOWUP_VIDEO_ID}',
           playerVars: {
             autoplay: 1,
@@ -316,6 +317,12 @@ function ensureWindowVisible(target: Window | null) {
   } catch {
     // Ignore browser-specific focus errors.
   }
+}
+
+function focusYoutubeWindow(prepared: LaunchPreparation | null) {
+  ensureWindowVisible(prepared?.youtubeWindow ?? null)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 160)
+  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 360)
 }
 
 function moveWindow(
@@ -398,12 +405,7 @@ export function openWindowsSingleScreen(
   activatePreparedYoutubeWindow(prepared?.youtubeWindow ?? null)
   prepared?.chatWindow?.location.replace(buildChatGptLaunchUrl())
 
-  ensureWindowVisible(prepared?.chatWindow ?? null)
-  ensureWindowVisible(prepared?.youtubeWindow ?? null)
-  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 120)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 220)
-  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 360)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
+  focusYoutubeWindow(prepared)
 
   return 'single-screen'
 }
@@ -416,12 +418,7 @@ export async function openWindowsMultiScreen(
 }
 
 export function focusLaunchWindows(prepared: LaunchPreparation | null) {
-  ensureWindowVisible(prepared?.chatWindow ?? null)
-  ensureWindowVisible(prepared?.youtubeWindow ?? null)
-  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 120)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 220)
-  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 360)
-  window.setTimeout(() => ensureWindowVisible(prepared?.youtubeWindow ?? null), 520)
+  focusYoutubeWindow(prepared)
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
