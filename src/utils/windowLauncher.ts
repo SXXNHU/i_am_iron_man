@@ -40,7 +40,6 @@ export type LaunchPreparation = {
 function buildChatGptLaunchUrl() {
   const url = new URL(CHATGPT_URL)
   url.searchParams.set('q', CHATGPT_PROMPT)
-  url.searchParams.set('hints', 'search')
   return url.toString()
 }
 
