@@ -225,7 +225,6 @@ function writeYoutubePlayerShell(target: Window | null) {
 
       function startPrimedPlayback() {
         if (!player) return;
-        try { player.setVolume(100); } catch (error) {}
         try { player.mute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
@@ -242,17 +241,19 @@ function writeYoutubePlayerShell(target: Window | null) {
           overlay.classList.add('hidden');
         }
 
-        try { player.setVolume(100); } catch (error) {}
-        try { player.unMute(); } catch (error) {}
         try {
           const state = player.getPlayerState ? player.getPlayerState() : -1;
           if (state !== YT.PlayerState.PLAYING) {
+            try { player.mute(); } catch (innerError) {}
             player.playVideo();
           }
         } catch (error) {
-          try { player.playVideo(); } catch (innerError) {}
+          try {
+            player.mute();
+            player.playVideo();
+          } catch (innerError) {}
         }
-        setStatus('Activated with volume 100.');
+        setStatus('Autoplay is armed in muted mode.');
       }
 
       window.__jarvisActivateYoutube = activatePlayback;
@@ -294,12 +295,12 @@ function writeYoutubePlayerShell(target: Window | null) {
                 if (activationRequested) {
                   window.setTimeout(activatePlayback, 60);
                 } else {
-                  setStatus('Muted autoplay is live. Waiting for the double clap to reveal audio.');
+                  setStatus('Muted autoplay is live. Waiting for the double clap to reveal the window.');
                 }
               }
 
-              if (event.data === YT.PlayerState.PAUSED && !activationRequested && playbackStarted) {
-                setStatus('Primed autoplay paused unexpectedly. Re-priming playback.');
+              if (event.data === YT.PlayerState.PAUSED && playbackStarted) {
+                setStatus('Autoplay paused unexpectedly. Re-priming muted playback.');
                 window.setTimeout(startPrimedPlayback, 80);
               }
             }
