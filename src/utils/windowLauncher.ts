@@ -205,15 +205,14 @@ function writeYoutubePlayerShell(target: Window | null) {
     <div class="overlay" id="jarvis-overlay">
       <div class="overlay-card">
         <strong>Channel Armed</strong>
-        <span>Muted playback is being primed now so the left screen can go live on the double clap.</span>
+        <span>Playback is being primed now so the left screen can go live on the double clap.</span>
       </div>
     </div>
-    <div class="status" id="jarvis-status">Priming muted autoplay from the Start JARVIS click.</div>
+    <div class="status" id="jarvis-status">Priming autoplay with volume 100 from the Start JARVIS click.</div>
     <script>
       let player;
       let playerReady = false;
       let activationRequested = false;
-      let playbackStarted = false;
       const overlay = document.getElementById('jarvis-overlay');
       const status = document.getElementById('jarvis-status');
 
@@ -225,7 +224,8 @@ function writeYoutubePlayerShell(target: Window | null) {
 
       function startPrimedPlayback() {
         if (!player) return;
-        try { player.mute(); } catch (error) {}
+        try { player.setVolume(100); } catch (error) {}
+        try { player.unMute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
 
@@ -242,18 +242,20 @@ function writeYoutubePlayerShell(target: Window | null) {
         }
 
         try {
+          player.setVolume(100);
+          player.unMute();
           const state = player.getPlayerState ? player.getPlayerState() : -1;
           if (state !== YT.PlayerState.PLAYING) {
-            try { player.mute(); } catch (innerError) {}
             player.playVideo();
           }
         } catch (error) {
           try {
-            player.mute();
+            player.setVolume(100);
+            player.unMute();
             player.playVideo();
           } catch (innerError) {}
         }
-        setStatus('Autoplay is armed in muted mode.');
+        setStatus('Autoplay is armed with volume 100.');
       }
 
       window.__jarvisActivateYoutube = activatePlayback;
@@ -268,7 +270,7 @@ function writeYoutubePlayerShell(target: Window | null) {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
-            mute: 1,
+            mute: 0,
             enablejsapi: 1,
             origin: '${window.location.origin}'
           },
@@ -290,18 +292,11 @@ function writeYoutubePlayerShell(target: Window | null) {
             },
             onStateChange: function(event) {
               if (event.data === YT.PlayerState.PLAYING) {
-                playbackStarted = true;
-
                 if (activationRequested) {
                   window.setTimeout(activatePlayback, 60);
                 } else {
-                  setStatus('Muted autoplay is live. Waiting for the double clap to reveal the window.');
+                  setStatus('Autoplay is live. Waiting for the double clap to reveal the window.');
                 }
-              }
-
-              if (event.data === YT.PlayerState.PAUSED && playbackStarted) {
-                setStatus('Autoplay paused unexpectedly. Re-priming muted playback.');
-                window.setTimeout(startPrimedPlayback, 80);
               }
             }
           }
