@@ -50,9 +50,9 @@ export function useClapDetection({
   const [error, setError] = useState('')
   const streamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
-  const analyserRef = useRef<AnalyserNode | null>(null)
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
-  const rafRef = useRef<number | null>(null)
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const silenceGainRef = useRef<GainNode | null>(null)
   const noiseFloorRef = useRef(0.012)
   const firstClapAtRef = useRef<number | null>(null)
   const lastAcceptedPeakAtRef = useRef(0)
@@ -106,69 +106,68 @@ export function useClapDetection({
       sourceRef.current = audioContext.createMediaStreamSource(stream)
     }
 
-    if (!analyserRef.current) {
-      analyserRef.current = audioContext.createAnalyser()
-      analyserRef.current.fftSize = CLAP_ANALYZER_FFT_SIZE
-      analyserRef.current.smoothingTimeConstant = 0.14
-      sourceRef.current.connect(analyserRef.current)
-    }
+    if (!processorRef.current) {
+      const silenceGain =
+        silenceGainRef.current ?? audioContext.createGain()
+      silenceGain.gain.value = 0
+      silenceGainRef.current = silenceGain
 
-    setAnalyzerState('listening')
-    analyze()
-  }
+      const processor = audioContext.createScriptProcessor(
+        CLAP_ANALYZER_FFT_SIZE,
+        1,
+        1,
+      )
 
-  function analyze() {
-    if (!analyserRef.current) {
-      return
-    }
+      processor.onaudioprocess = (event) => {
+        const samples = event.inputBuffer.getChannelData(0)
+        const result = detectClap(
+          samples,
+          noiseFloorRef.current,
+          CLAP_PEAK_THRESHOLD,
+        )
 
-    const samples = new Float32Array(analyserRef.current.fftSize)
+        noiseFloorRef.current = noiseFloorRef.current * 0.92 + result.rms * 0.08
 
-    const tick = () => {
-      if (!analyserRef.current) {
-        return
-      }
+        const now = performance.now()
+        const elapsedSincePeak = now - lastAcceptedPeakAtRef.current
+        const firstClapAt = firstClapAtRef.current
 
-      analyserRef.current.getFloatTimeDomainData(samples)
-      const result = detectClap(samples, noiseFloorRef.current, CLAP_PEAK_THRESHOLD)
+        if (result.isClapLike && elapsedSincePeak >= CLAP_REFRACTORY_MS) {
+          lastAcceptedPeakAtRef.current = now
 
-      noiseFloorRef.current = noiseFloorRef.current * 0.92 + result.rms * 0.08
+          if (!firstClapAt || now - firstClapAt > DOUBLE_CLAP_WINDOW_MS) {
+            firstClapAtRef.current = now
+            onFirstClap()
+          } else {
+            firstClapAtRef.current = null
+            onDoubleClap()
+          }
+        }
 
-      const now = performance.now()
-      const elapsedSincePeak = now - lastAcceptedPeakAtRef.current
-      const firstClapAt = firstClapAtRef.current
-
-      // Treat only sharp, isolated spikes as claps so speech and keyboard noise are less likely to trigger.
-      if (result.isClapLike && elapsedSincePeak >= CLAP_REFRACTORY_MS) {
-        lastAcceptedPeakAtRef.current = now
-
-        if (!firstClapAt || now - firstClapAt > DOUBLE_CLAP_WINDOW_MS) {
-          firstClapAtRef.current = now
-          onFirstClap()
-        } else {
+        if (firstClapAt && now - firstClapAt > CLAP_RESET_AFTER_MS) {
           firstClapAtRef.current = null
-          onDoubleClap()
         }
       }
 
-      if (firstClapAt && now - firstClapAt > CLAP_RESET_AFTER_MS) {
-        firstClapAtRef.current = null
-      }
-
-      rafRef.current = window.requestAnimationFrame(tick)
+      sourceRef.current.connect(processor)
+      processor.connect(silenceGain)
+      silenceGain.connect(audioContext.destination)
+      processorRef.current = processor
     }
 
-    if (rafRef.current) {
-      window.cancelAnimationFrame(rafRef.current)
-    }
-
-    rafRef.current = window.requestAnimationFrame(tick)
+    setAnalyzerState('listening')
   }
 
   function stopClapListening() {
-    if (rafRef.current) {
-      window.cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
+    if (processorRef.current) {
+      processorRef.current.disconnect()
+      processorRef.current.onaudioprocess = null
+      processorRef.current = null
+    }
+
+    if (silenceGainRef.current) {
+      silenceGainRef.current.disconnect()
+      silenceGainRef.current = null
     }
 
     setAnalyzerState('stopped')
