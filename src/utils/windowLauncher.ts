@@ -207,7 +207,7 @@ function writeYoutubePlayerShell(target: Window | null) {
         <span>Playback is being primed now so the left screen can go live on the double clap.</span>
       </div>
     </div>
-    <div class="status" id="jarvis-status">Priming autoplay with volume 100 from the Start JARVIS click.</div>
+    <div class="status" id="jarvis-status">Priming muted autoplay — will unmute on double clap.</div>
     <script>
       let player;
       let playerReady = false;
@@ -223,8 +223,6 @@ function writeYoutubePlayerShell(target: Window | null) {
 
       function startPrimedPlayback() {
         if (!player) return;
-        try { player.setVolume(100); } catch (error) {}
-        try { player.unMute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
 
@@ -269,7 +267,7 @@ function writeYoutubePlayerShell(target: Window | null) {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
-            mute: 0,
+            mute: 1,
             enablejsapi: 1,
             origin: '${window.location.origin}'
           },
