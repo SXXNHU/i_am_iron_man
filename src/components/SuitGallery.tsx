@@ -47,6 +47,25 @@ const SHOWCASE_SUITS: ShowcaseAsset[] = [
   },
 ]
 
+function warmModel(src: string, cache: Map<string, Promise<void>>) {
+  const cached = cache.get(src)
+  if (cached) return cached
+
+  const request = fetch(src, { cache: 'force-cache' })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to preload ${src}`)
+      }
+
+      return response.blob()
+    })
+    .then(() => undefined)
+    .catch(() => undefined)
+
+  cache.set(src, request)
+  return request
+}
+
 function SuitSpecRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="suit-spec-row">
@@ -118,30 +137,79 @@ function SuitPod({
 function PlatformDisplay({
   asset,
   phase,
+  isLoading,
+  onModelReady,
 }: {
   asset: ShowcaseAsset | null
   phase: 'idle' | 'materializing' | 'active'
+  isLoading: boolean
+  onModelReady: () => void
 }) {
+  const viewerRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const viewer = viewerRef.current
+
+    if (!viewer || !asset) {
+      return
+    }
+
+    const handleLoad = () => {
+      onModelReady()
+    }
+
+    const handleError = () => {
+      onModelReady()
+    }
+
+    viewer.addEventListener('load', handleLoad)
+    viewer.addEventListener('error', handleError)
+
+    return () => {
+      viewer.removeEventListener('load', handleLoad)
+      viewer.removeEventListener('error', handleError)
+    }
+  }, [asset, onModelReady])
+
   return (
     <div className={`platform-display platform-display--${phase}`}>
       <div className="platform-model-area">
-        <div className={`platform-hologram platform-hologram--${phase}`}>
+        <div
+          className={`platform-hologram platform-hologram--${phase}${
+            isLoading ? ' platform-hologram--loading' : ''
+          }`}
+        >
           <div className="platform-hologram-scanlines" />
           <div className="platform-hologram-glow" />
           {asset ? (
-            <model-viewer
-              key={asset.suit.id}
-              src={asset.modelSrc}
-              camera-controls={false}
-              disable-zoom
-              disable-pan
-              auto-rotate
-              rotation-per-second="12deg"
-              shadow-intensity="0"
-              exposure="1.08"
-              interaction-prompt="none"
-              class="platform-model-viewer"
-            />
+            <>
+              <model-viewer
+                key={asset.suit.id}
+                ref={viewerRef}
+                src={asset.modelSrc}
+                camera-controls={false}
+                disable-zoom
+                disable-pan
+                auto-rotate
+                rotation-per-second="12deg"
+                shadow-intensity="0"
+                exposure="1.08"
+                interaction-prompt="none"
+                class="platform-model-viewer"
+              />
+              {isLoading ? (
+                <div className="platform-loading-rig" aria-hidden="true">
+                  <div className="platform-loading-beam platform-loading-beam--core" />
+                  <div className="platform-loading-beam platform-loading-beam--left" />
+                  <div className="platform-loading-beam platform-loading-beam--right" />
+                  <div className="platform-loading-orbit" />
+                  <div className="platform-loading-copy">
+                    <span>ARMOR SYNC</span>
+                    <strong>Materializing {asset.suit.designation}</strong>
+                  </div>
+                </div>
+              ) : null}
+            </>
           ) : (
             <div className="platform-idle-hint">
               <div className="platform-idle-ring platform-idle-ring--outer" />
@@ -205,13 +273,38 @@ export function SuitGallery() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [glitchingId, setGlitchingId] = useState<string | null>(null)
   const [platformPhase, setPlatformPhase] = useState<'idle' | 'materializing' | 'active'>('idle')
+  const [loadingSuitId, setLoadingSuitId] = useState<string | null>(null)
   const [showHintIndex, setShowHintIndex] = useState<number | null>(null)
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hintCycleRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const preloadCacheRef = useRef<Map<string, Promise<void>>>(new Map())
 
   const leftAssets = SHOWCASE_SUITS.slice(0, 2)
   const rightAssets = SHOWCASE_SUITS.slice(2, 4)
   const selectedAsset = SHOWCASE_SUITS.find((asset) => asset.suit.id === selectedId) ?? null
+
+  useEffect(() => {
+    const preloadAll = () => {
+      SHOWCASE_SUITS.reduce<Promise<void>>((chain, asset) => {
+        return chain.then(() => warmModel(asset.modelSrc, preloadCacheRef.current))
+      }, Promise.resolve())
+    }
+
+    const supportsIdleCallback = typeof window.requestIdleCallback === 'function'
+    const idleHandle: number = supportsIdleCallback
+      ? window.requestIdleCallback(() => {
+          preloadAll()
+        })
+      : window.setTimeout(preloadAll, 600)
+
+    return () => {
+      if (!supportsIdleCallback) {
+        window.clearTimeout(idleHandle)
+      } else {
+        window.cancelIdleCallback(idleHandle)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (selectedId) {
@@ -241,6 +334,7 @@ export function SuitGallery() {
     if (selectedId === asset.suit.id) {
       setSelectedId(null)
       setPlatformPhase('idle')
+      setLoadingSuitId(null)
       setShowHintIndex(null)
       return
     }
@@ -252,12 +346,16 @@ export function SuitGallery() {
     window.setTimeout(() => {
       setSelectedId(asset.suit.id)
       setGlitchingId(null)
+      setLoadingSuitId(asset.suit.id)
       setPlatformPhase('materializing')
-
-      window.setTimeout(() => {
-        setPlatformPhase('active')
-      }, 900)
+      void warmModel(asset.modelSrc, preloadCacheRef.current)
     }, 480)
+  }
+
+  function handleModelReady() {
+    if (!selectedAsset) return
+    setLoadingSuitId((current) => (current === selectedAsset.suit.id ? null : current))
+    setPlatformPhase('active')
   }
 
   return (
@@ -276,7 +374,12 @@ export function SuitGallery() {
       </div>
 
       <div className="armor-center">
-        <PlatformDisplay asset={selectedAsset} phase={platformPhase} />
+        <PlatformDisplay
+          asset={selectedAsset}
+          phase={platformPhase}
+          isLoading={loadingSuitId === selectedAsset?.suit.id}
+          onModelReady={handleModelReady}
+        />
         {selectedAsset && platformPhase === 'active' ? (
           <SuitInfoPanel suit={selectedAsset.suit} />
         ) : null}
