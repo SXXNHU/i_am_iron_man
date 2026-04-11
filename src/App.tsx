@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BootSequence } from './components/BootSequence'
 import { ControlPanel } from './components/ControlPanel'
-import { HudShowcase } from './components/HudShowcase'
+import { SuitGallery } from './components/SuitGallery'
 import { StatusPanel } from './components/StatusPanel'
 import { TranscriptPanel } from './components/TranscriptPanel'
 import { useClapDetection } from './hooks/useClapDetection'
@@ -437,35 +437,17 @@ function App() {
       <div className="ambient ambient-left" />
       <div className="ambient ambient-right" />
       <section className={`hud-card${bootComplete ? ' hud-card-live' : ' hud-card-hidden'}`}>
-        <div className="eyebrow">Desktop Activation Prototype</div>
-        <h1>JARVIS MODE</h1>
+        <div className="eyebrow">J.A.R.V.I.S — HALL OF ARMOR</div>
+        <h1>STARK INDUSTRIES</h1>
         <p className="subtitle">
-          Double clap to wake your desktop assistant.
+          {appState === 'armed' || appState === 'first_clap_detected'
+            ? clapCount === 1
+              ? '[ ONE MORE CLAP... ]'
+              : '[ AWAITING DOUBLE CLAP ]'
+            : 'ARMOR MANAGEMENT SYSTEM — MARK I THROUGH L'}
         </p>
 
-        <HudShowcase
-          appState={appState}
-          assistantResponse={assistantResponse}
-          clapCount={clapCount}
-          connectionStatus={connectionStatus}
-          currentTranscript={currentTranscript}
-        />
-
-        <div className="support-grid">
-          <div className="support-callout">
-            <span className="support-label">Popup Notice</span>
-            <p>
-              For the split-window launch to work reliably, allow popups when
-              you click <strong>Start JARVIS</strong>. The <strong>Ready</strong>{' '}
-              step no longer opens any windows. After the double clap, the
-              gaming video opens on the left and ChatGPT opens on the right.
-            </p>
-          </div>
-          <div className="support-callout">
-            <span className="support-label">Greeting</span>
-            <p>Welcome back, sir</p>
-          </div>
-        </div>
+        <SuitGallery />
 
         <ControlPanel
           appState={appState}
@@ -478,15 +460,11 @@ function App() {
           onTestLaunch={handleTestLaunch}
         />
 
-        <div className="inline-hints">
-          <span className={clapCount === 1 ? 'hint active' : 'hint'}>
-            {clapCount === 1 ? 'One more clap...' : 'Awaiting double clap'}
-          </span>
-          <span className="hint">
-            {supportMessage ||
-              'Realtime voice uses WebRTC with a server-issued session token.'}
-          </span>
-        </div>
+        {supportMessage && (
+          <div className="inline-hints">
+            <span className="hint active">{supportMessage}</span>
+          </div>
+        )}
 
         <StatusPanel items={statusItems} error={lastError} />
         <TranscriptPanel entries={transcriptEntries} />
