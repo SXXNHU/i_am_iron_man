@@ -17,6 +17,10 @@ declare module 'react' {
         'interaction-prompt'?: string
         'rotation-per-second'?: string
         'shadow-intensity'?: string
+        orientation?: string
+        'camera-orbit'?: string
+        'camera-target'?: string
+        ar?: boolean
         exposure?: string
         class?: string
       }

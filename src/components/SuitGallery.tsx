@@ -14,6 +14,8 @@ type ShowcaseAsset = {
   modelSrc: string
   hologramSrc: string
   hologramTone: string
+  modelOrientation?: string
+  cameraOrbit?: string
 }
 
 const SHOWCASE_SUITS: ShowcaseAsset[] = [
@@ -23,6 +25,7 @@ const SHOWCASE_SUITS: ShowcaseAsset[] = [
     hologramSrc: markOneHologram,
     hologramTone:
       'saturate(0.1) brightness(0.58) contrast(1.1) grayscale(0.75) sepia(0.2)',
+    cameraOrbit: '0deg 78deg auto',
   },
   {
     suit: IRON_MAN_SUITS[1],
@@ -30,6 +33,7 @@ const SHOWCASE_SUITS: ShowcaseAsset[] = [
     hologramSrc: ironmanHologram,
     hologramTone:
       'saturate(0.18) brightness(1.15) contrast(1.05) grayscale(0.55)',
+    cameraOrbit: '0deg 78deg auto',
   },
   {
     suit: IRON_MAN_SUITS[2],
@@ -37,6 +41,8 @@ const SHOWCASE_SUITS: ShowcaseAsset[] = [
     hologramSrc: ironmanHologram,
     hologramTone:
       'saturate(0.12) brightness(1.05) contrast(1.08) grayscale(0.35) hue-rotate(18deg)',
+    modelOrientation: '0deg 180deg 0deg',
+    cameraOrbit: '0deg 76deg auto',
   },
   {
     suit: IRON_MAN_SUITS[3],
@@ -44,6 +50,8 @@ const SHOWCASE_SUITS: ShowcaseAsset[] = [
     hologramSrc: hulkbusterHologram,
     hologramTone:
       'saturate(0.22) brightness(0.82) contrast(1.15) grayscale(0.48)',
+    modelOrientation: '0deg 180deg 0deg',
+    cameraOrbit: '0deg 82deg auto',
   },
 ]
 
@@ -187,6 +195,8 @@ function PlatformDisplay({
                 key={asset.suit.id}
                 ref={viewerRef}
                 src={asset.modelSrc}
+                orientation={asset.modelOrientation}
+                camera-orbit={asset.cameraOrbit}
                 camera-controls={false}
                 disable-zoom
                 disable-pan
