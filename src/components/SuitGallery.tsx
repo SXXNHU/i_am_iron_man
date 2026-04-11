@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import '@google/model-viewer'
+import ironmanHologram from '../assets/ironman_hologram.png'
+import ironManModel from '../assets/iron_man.glb?url'
 import { IRON_MAN_SUITS, type IronManSuit } from '../data/suits'
 
 // ─── SVG Suit Shapes ────────────────────────────────────────────────────────
@@ -166,7 +169,7 @@ function StealthSuitPaths() {
   )
 }
 
-function SuitSVG({
+export function SuitSVG({
   suit,
   size = 'pod',
 }: {
@@ -247,7 +250,12 @@ function SuitPod({ suit, isSelected, isGlitching, isEmpty, showHint, onClick }: 
       <div className="suit-pod-case">
         {!isEmpty && (
           <div className="suit-pod-figure">
-            <SuitSVG suit={suit} size="pod" />
+            <img
+              src={ironmanHologram}
+              alt={`${suit.name} hologram`}
+              className="suit-pod-hologram"
+              loading="lazy"
+            />
             <div className="suit-pod-scanline" />
             <div className="suit-pod-glow" />
           </div>
@@ -285,41 +293,36 @@ interface PlatformDisplayProps {
 function PlatformDisplay({ selectedSuit, phase }: PlatformDisplayProps) {
   return (
     <div className={`platform-display platform-display--${phase}`}>
-      {/* Rotating suit model */}
       <div className="platform-model-area">
-        {phase === 'idle' && (
-          <div className="platform-idle-hint">
-            <div className="platform-idle-ring platform-idle-ring--outer" />
-            <div className="platform-idle-ring platform-idle-ring--mid" />
-            <div className="platform-idle-ring platform-idle-ring--inner" />
-            <div className="platform-idle-text">
-              <span className="platform-idle-label">SELECT SUIT</span>
-              <span className="platform-idle-sub">CHOOSE FROM GALLERY</span>
-            </div>
-          </div>
-        )}
-
-        {(phase === 'materializing' || phase === 'active') && selectedSuit && (
-          <div
-            className={`platform-hologram platform-hologram--${phase}`}
-            style={{ '--hue': selectedSuit.accentHue } as React.CSSProperties}
-          >
-            <div className="platform-hologram-scanlines" />
-            <div className="platform-hologram-glow" />
-            <SuitSVG suit={selectedSuit} size="platform" />
-          </div>
-        )}
+        <div
+          className={`platform-hologram platform-hologram--${phase}`}
+          style={{ '--hue': selectedSuit?.accentHue ?? '190deg' } as React.CSSProperties}
+        >
+          <div className="platform-hologram-scanlines" />
+          <div className="platform-hologram-glow" />
+          <model-viewer
+            src={ironManModel}
+            camera-controls={false}
+            disable-zoom
+            disable-pan
+            auto-rotate
+            rotation-per-second="18deg"
+            shadow-intensity="0"
+            exposure="1.08"
+            interaction-prompt="none"
+            class="platform-model-viewer"
+          />
+        </div>
       </div>
 
-      {/* Platform base */}
       <div className="platform-base">
         <div className="platform-base-ring platform-base-ring--outer" />
         <div className="platform-base-ring platform-base-ring--mid" />
         <div className="platform-base-ring platform-base-ring--inner" />
         <div className="platform-base-light" />
-        {selectedSuit && phase === 'active' && (
-          <div className="platform-base-label">{selectedSuit.designation}</div>
-        )}
+        <div className="platform-base-label">
+          {selectedSuit ? selectedSuit.designation : 'IRON MAN'}
+        </div>
       </div>
     </div>
   )
