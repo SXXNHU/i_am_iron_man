@@ -55,6 +55,16 @@ const SHOWCASE_SUITS: ShowcaseAsset[] = [
   },
 ]
 
+const MATERIALIZATION_LASERS = [
+  { id: 'crown-left', angle: '-126deg', length: '238px', delay: '0s', hue: '0deg' },
+  { id: 'spine-left', angle: '-108deg', length: '258px', delay: '0.08s', hue: '-8deg' },
+  { id: 'core', angle: '-92deg', length: '288px', delay: '0.16s', hue: '4deg' },
+  { id: 'spine-right', angle: '-76deg', length: '246px', delay: '0.24s', hue: '10deg' },
+  { id: 'crown-right', angle: '-58deg', length: '214px', delay: '0.32s', hue: '18deg' },
+  { id: 'flare-left', angle: '-142deg', length: '190px', delay: '0.14s', hue: '-16deg' },
+  { id: 'flare-right', angle: '-40deg', length: '184px', delay: '0.4s', hue: '14deg' },
+]
+
 function warmModel(src: string, cache: Map<string, Promise<void>>) {
   const cached = cache.get(src)
   if (cached) return cached
@@ -189,6 +199,13 @@ function PlatformDisplay({
         >
           <div className="platform-hologram-scanlines" />
           <div className="platform-hologram-glow" />
+          <div className="platform-pedestal" aria-hidden="true">
+            <div className="platform-pedestal-shadow" />
+            <div className="platform-pedestal-rim" />
+            <div className="platform-pedestal-top" />
+            <div className="platform-pedestal-wall" />
+            <div className="platform-pedestal-core" />
+          </div>
           {asset ? (
             <>
               <model-viewer
@@ -209,10 +226,23 @@ function PlatformDisplay({
               />
               {isLoading ? (
                 <div className="platform-loading-rig" aria-hidden="true">
-                  <div className="platform-loading-beam platform-loading-beam--core" />
-                  <div className="platform-loading-beam platform-loading-beam--left" />
-                  <div className="platform-loading-beam platform-loading-beam--right" />
+                  <div className="platform-loading-emitter" />
                   <div className="platform-loading-orbit" />
+                  <div className="platform-loading-scan-cone" />
+                  {MATERIALIZATION_LASERS.map((laser) => (
+                    <div
+                      key={laser.id}
+                      className="platform-loading-laser"
+                      style={
+                        {
+                          '--laser-angle': laser.angle,
+                          '--laser-length': laser.length,
+                          '--laser-delay': laser.delay,
+                          '--laser-hue': laser.hue,
+                        } as CSSProperties
+                      }
+                    />
+                  ))}
                   <div className="platform-loading-copy">
                     <span>ARMOR SYNC</span>
                     <strong>Materializing {asset.suit.designation}</strong>
@@ -248,33 +278,72 @@ function PlatformDisplay({
 }
 
 function SuitInfoPanel({ suit }: { suit: IronManSuit }) {
+  const frameProfile =
+    suit.variant === 'hulkbuster'
+      ? 'Siege Countermeasure'
+      : suit.variant === 'stealth'
+        ? 'Stealth Infiltration'
+        : 'Aerial Combat Frame'
+  const systemsSpecs = suit.specSheet.slice(0, 2)
+  const tacticalSpecs = suit.specSheet.slice(2)
+
   return (
-    <div className="suit-info-panel">
-      <div className="suit-info-header">
-        <span className="suit-info-designation">{suit.designation}</span>
-        <span className={`suit-info-status suit-info-status--${suit.status.toLowerCase()}`}>
-          {suit.status}
-        </span>
-      </div>
-
-      <h3 className="suit-info-name">{suit.name}</h3>
-      <p className="suit-info-year">DEPLOYED {suit.year}</p>
-      <p className="suit-info-desc">{suit.description}</p>
-
-      <div className="suit-info-specs">
-        {suit.specSheet.map((spec) => (
-          <SuitSpecRow key={spec.label} label={spec.label} value={spec.value} />
-        ))}
-      </div>
-
-      <div className="suit-info-caps">
-        <span className="suit-info-caps-label">CAPABILITIES</span>
-        <ul className="suit-info-caps-list">
-          {suit.capabilities.map((cap) => (
-            <li key={cap}>{cap}</li>
+    <div className="suit-monitor-deck">
+      <section className="suit-monitor suit-monitor--left">
+        <div className="suit-monitor-topline">
+          <span>SYSTEM BUS</span>
+          <strong>PRIMARY STACK</strong>
+        </div>
+        <div className="suit-info-specs">
+          {systemsSpecs.map((spec) => (
+            <SuitSpecRow key={spec.label} label={spec.label} value={spec.value} />
           ))}
-        </ul>
-      </div>
+        </div>
+      </section>
+
+      <section className="suit-monitor suit-monitor--center">
+        <div className="suit-info-header">
+          <span className="suit-info-designation">{suit.designation}</span>
+          <span className={`suit-info-status suit-info-status--${suit.status.toLowerCase()}`}>
+            {suit.status}
+          </span>
+        </div>
+
+        <h3 className="suit-info-name">{suit.name}</h3>
+        <div className="suit-monitor-tags">
+          <span>DEPLOYED {suit.year}</span>
+          <span>{frameProfile}</span>
+          <span>{suit.capabilities.length} ACTIVE SYSTEMS</span>
+        </div>
+        <p className="suit-info-desc">{suit.description}</p>
+
+        <div className="suit-monitor-footer">
+          <span>HOLOGRAM GANTRY</span>
+          <strong>Triangulated pedestal lasers are tracing the shell volume in sequence.</strong>
+        </div>
+      </section>
+
+      <section className="suit-monitor suit-monitor--right">
+        <div className="suit-monitor-topline">
+          <span>TACTICAL OUTPUT</span>
+          <strong>MISSION LOADOUT</strong>
+        </div>
+
+        <div className="suit-info-caps">
+          <span className="suit-info-caps-label">CAPABILITIES</span>
+          <ul className="suit-info-caps-list">
+            {suit.capabilities.map((cap) => (
+              <li key={cap}>{cap}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="suit-info-specs">
+          {tacticalSpecs.map((spec) => (
+            <SuitSpecRow key={spec.label} label={spec.label} value={spec.value} />
+          ))}
+        </div>
+      </section>
     </div>
   )
 }
