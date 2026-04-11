@@ -1,8 +1,51 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import '@google/model-viewer'
-import ironmanHologram from '../assets/ironman_hologram.png'
+import hulkbusterModel from '../assets/hulkbuster.glb?url'
+import hulkbusterHologram from '../assets/hulkbuster_hologram.png'
 import ironManModel from '../assets/iron_man.glb?url'
+import markOneModel from '../assets/iron_man_-_mark_1.glb?url'
+import markEightyFiveModel from '../assets/iron_man_mark_85.glb?url'
+import ironmanHologram from '../assets/ironman_hologram.png'
+import markOneHologram from '../assets/mk-1_hologram.png'
 import { IRON_MAN_SUITS, type IronManSuit } from '../data/suits'
+
+type ShowcaseAsset = {
+  suit: IronManSuit
+  modelSrc: string
+  hologramSrc: string
+  hologramTone: string
+}
+
+const SHOWCASE_SUITS: ShowcaseAsset[] = [
+  {
+    suit: IRON_MAN_SUITS[0],
+    modelSrc: markOneModel,
+    hologramSrc: markOneHologram,
+    hologramTone:
+      'saturate(0.1) brightness(0.58) contrast(1.1) grayscale(0.75) sepia(0.2)',
+  },
+  {
+    suit: IRON_MAN_SUITS[1],
+    modelSrc: ironManModel,
+    hologramSrc: ironmanHologram,
+    hologramTone:
+      'saturate(0.18) brightness(1.15) contrast(1.05) grayscale(0.55)',
+  },
+  {
+    suit: IRON_MAN_SUITS[2],
+    modelSrc: markEightyFiveModel,
+    hologramSrc: ironmanHologram,
+    hologramTone:
+      'saturate(0.12) brightness(1.05) contrast(1.08) grayscale(0.35) hue-rotate(18deg)',
+  },
+  {
+    suit: IRON_MAN_SUITS[3],
+    modelSrc: hulkbusterModel,
+    hologramSrc: hulkbusterHologram,
+    hologramTone:
+      'saturate(0.22) brightness(0.82) contrast(1.15) grayscale(0.48)',
+  },
+]
 
 function SuitSpecRow({ label, value }: { label: string; value: string }) {
   return (
@@ -13,57 +56,49 @@ function SuitSpecRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-interface SuitPodProps {
-  suit: IronManSuit
-  isSelected: boolean
-  isGlitching: boolean
-  isEmpty: boolean
-  showHint: boolean
-  onClick: () => void
-}
-
 function SuitPod({
-  suit,
+  asset,
   isSelected,
   isGlitching,
-  isEmpty,
   showHint,
   onClick,
-}: SuitPodProps) {
+}: {
+  asset: ShowcaseAsset
+  isSelected: boolean
+  isGlitching: boolean
+  showHint: boolean
+  onClick: () => void
+}) {
   return (
     <button
       className={[
         'suit-pod',
         isSelected ? 'suit-pod--selected' : '',
         isGlitching ? 'suit-pod--glitching' : '',
-        isEmpty ? 'suit-pod--empty' : '',
         showHint ? 'suit-pod--hint' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       onClick={onClick}
-      aria-label={`Select ${suit.name}`}
-      style={{ '--hue': suit.accentHue } as CSSProperties}
+      aria-label={`Select ${asset.suit.name}`}
+      style={
+        {
+          '--hologram-filter': `${asset.hologramTone} drop-shadow(0 0 8px rgba(89, 245, 255, 0.7)) drop-shadow(0 0 18px rgba(89, 245, 255, 0.28))`,
+        } as CSSProperties
+      }
     >
       <div className="suit-pod-case">
-        {!isEmpty ? (
-          <div className="suit-pod-figure">
-            <img
-              src={ironmanHologram}
-              alt={`${suit.name} hologram`}
-              className="suit-pod-hologram"
-              loading="lazy"
-            />
-            <div className="suit-pod-scanline" />
-            <div className="suit-pod-glow" />
-          </div>
-        ) : (
-          <div className="suit-pod-empty-state">
-            <div className="suit-pod-empty-ring" />
-            <span className="suit-pod-empty-label">DEPLOYED</span>
-          </div>
-        )}
-        {showHint && !isEmpty ? (
+        <div className="suit-pod-figure">
+          <img
+            src={asset.hologramSrc}
+            alt={`${asset.suit.name} hologram`}
+            className="suit-pod-hologram"
+            loading="lazy"
+          />
+          <div className="suit-pod-scanline" />
+          <div className="suit-pod-glow" />
+        </div>
+        {showHint ? (
           <div className="suit-pod-hint-indicator">
             <div className="suit-pod-hint-chevron" />
             <span>ACTIVATE</span>
@@ -71,9 +106,9 @@ function SuitPod({
         ) : null}
       </div>
       <div className="suit-pod-label">
-        <span className="suit-pod-designation">{suit.designation}</span>
-        <span className={`suit-pod-status suit-pod-status--${suit.status.toLowerCase()}`}>
-          {suit.status}
+        <span className="suit-pod-designation">{asset.suit.designation}</span>
+        <span className={`suit-pod-status suit-pod-status--${asset.suit.status.toLowerCase()}`}>
+          {asset.suit.status}
         </span>
       </div>
     </button>
@@ -81,33 +116,43 @@ function SuitPod({
 }
 
 function PlatformDisplay({
-  selectedSuit,
+  asset,
   phase,
 }: {
-  selectedSuit: IronManSuit | null
+  asset: ShowcaseAsset | null
   phase: 'idle' | 'materializing' | 'active'
 }) {
   return (
     <div className={`platform-display platform-display--${phase}`}>
       <div className="platform-model-area">
-        <div
-          className={`platform-hologram platform-hologram--${phase}`}
-          style={{ '--hue': selectedSuit?.accentHue ?? '190deg' } as CSSProperties}
-        >
+        <div className={`platform-hologram platform-hologram--${phase}`}>
           <div className="platform-hologram-scanlines" />
           <div className="platform-hologram-glow" />
-          <model-viewer
-            src={ironManModel}
-            camera-controls={false}
-            disable-zoom
-            disable-pan
-            auto-rotate
-            rotation-per-second="18deg"
-            shadow-intensity="0"
-            exposure="1.08"
-            interaction-prompt="none"
-            class="platform-model-viewer"
-          />
+          {asset ? (
+            <model-viewer
+              key={asset.suit.id}
+              src={asset.modelSrc}
+              camera-controls={false}
+              disable-zoom
+              disable-pan
+              auto-rotate
+              rotation-per-second="12deg"
+              shadow-intensity="0"
+              exposure="1.08"
+              interaction-prompt="none"
+              class="platform-model-viewer"
+            />
+          ) : (
+            <div className="platform-idle-hint">
+              <div className="platform-idle-ring platform-idle-ring--outer" />
+              <div className="platform-idle-ring platform-idle-ring--mid" />
+              <div className="platform-idle-ring platform-idle-ring--inner" />
+              <div className="platform-idle-text">
+                <span className="platform-idle-label">SELECT A SUIT</span>
+                <span className="platform-idle-sub">MARK I / MK-III / MK-LXXXV / HULKBUSTER</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -117,7 +162,7 @@ function PlatformDisplay({
         <div className="platform-base-ring platform-base-ring--inner" />
         <div className="platform-base-light" />
         <div className="platform-base-label">
-          {selectedSuit ? selectedSuit.designation : 'IRON MAN'}
+          {asset ? asset.suit.designation : 'IRON MAN ARMORY'}
         </div>
       </div>
     </div>
@@ -164,9 +209,9 @@ export function SuitGallery() {
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hintCycleRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const leftSuits = IRON_MAN_SUITS.slice(0, 3)
-  const rightSuits = IRON_MAN_SUITS.slice(3, 6)
-  const selectedSuit = IRON_MAN_SUITS.find((suit) => suit.id === selectedId) ?? null
+  const leftAssets = SHOWCASE_SUITS.slice(0, 2)
+  const rightAssets = SHOWCASE_SUITS.slice(2, 4)
+  const selectedAsset = SHOWCASE_SUITS.find((asset) => asset.suit.id === selectedId) ?? null
 
   useEffect(() => {
     if (selectedId) {
@@ -179,10 +224,10 @@ export function SuitGallery() {
       let index = 0
       setShowHintIndex(index)
       hintCycleRef.current = setInterval(() => {
-        index = (index + 1) % IRON_MAN_SUITS.length
+        index = (index + 1) % SHOWCASE_SUITS.length
         setShowHintIndex(index)
-      }, 1800)
-    }, 3000)
+      }, 2200)
+    }, 2200)
 
     return () => {
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
@@ -190,64 +235,62 @@ export function SuitGallery() {
     }
   }, [selectedId])
 
-  function handleSelectSuit(suit: IronManSuit) {
+  function handleSelectSuit(asset: ShowcaseAsset) {
     if (glitchingId) return
 
-    if (selectedId === suit.id) {
+    if (selectedId === asset.suit.id) {
       setSelectedId(null)
       setPlatformPhase('idle')
       setShowHintIndex(null)
       return
     }
 
-    setGlitchingId(suit.id)
+    setGlitchingId(asset.suit.id)
     setPlatformPhase('idle')
     setShowHintIndex(null)
 
-    setTimeout(() => {
-      setSelectedId(suit.id)
+    window.setTimeout(() => {
+      setSelectedId(asset.suit.id)
       setGlitchingId(null)
       setPlatformPhase('materializing')
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         setPlatformPhase('active')
       }, 900)
-    }, 600)
+    }, 480)
   }
 
   return (
-    <div className="hall-of-armor">
+    <div className="hall-of-armor hall-of-armor--quad">
       <div className="armor-wing armor-wing--left">
-        {leftSuits.map((suit, index) => (
+        {leftAssets.map((asset, index) => (
           <SuitPod
-            key={suit.id}
-            suit={suit}
-            isSelected={selectedId === suit.id}
-            isGlitching={glitchingId === suit.id}
-            isEmpty={selectedId === suit.id && platformPhase !== 'idle'}
+            key={asset.suit.id}
+            asset={asset}
+            isSelected={selectedId === asset.suit.id}
+            isGlitching={glitchingId === asset.suit.id}
             showHint={showHintIndex === index}
-            onClick={() => handleSelectSuit(suit)}
+            onClick={() => handleSelectSuit(asset)}
           />
         ))}
       </div>
 
       <div className="armor-center">
-        <PlatformDisplay selectedSuit={selectedSuit} phase={platformPhase} />
-        {selectedSuit && platformPhase === 'active' ? (
-          <SuitInfoPanel suit={selectedSuit} />
+        <PlatformDisplay asset={selectedAsset} phase={platformPhase} />
+        {selectedAsset && platformPhase === 'active' ? (
+          <SuitInfoPanel suit={selectedAsset.suit} />
         ) : null}
       </div>
 
       <div className="armor-wing armor-wing--right">
-        {rightSuits.map((suit, index) => (
+        {rightAssets.map((asset, index) => (
           <SuitPod
-            key={suit.id}
-            suit={suit}
-            isSelected={selectedId === suit.id}
-            isGlitching={glitchingId === suit.id}
-            isEmpty={selectedId === suit.id && platformPhase !== 'idle'}
-            showHint={showHintIndex === index + 3}
-            onClick={() => handleSelectSuit(suit)}
+            key={asset.suit.id}
+            asset={asset}
+            isSelected={selectedId === asset.suit.id}
+            isGlitching={glitchingId === asset.suit.id}
+            showHint={showHintIndex === index + 2}
+            onClick={() => handleSelectSuit(asset)}
           />
         ))}
       </div>
