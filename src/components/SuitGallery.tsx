@@ -93,6 +93,15 @@ function SuitSpecRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+function SuitReadoutRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="suit-readout-row">
+      <span className="suit-readout-label">{label}</span>
+      <strong className="suit-readout-value">{value}</strong>
+    </div>
+  )
+}
+
 function SuitPod({
   asset,
   isSelected,
@@ -284,66 +293,136 @@ function SuitInfoPanel({ suit }: { suit: IronManSuit }) {
       : suit.variant === 'stealth'
         ? 'Stealth Infiltration'
         : 'Aerial Combat Frame'
-  const systemsSpecs = suit.specSheet.slice(0, 2)
-  const tacticalSpecs = suit.specSheet.slice(2)
+  const identityReadouts = [
+    { label: 'STATUS', value: suit.status },
+    { label: 'DEPLOYED', value: suit.year },
+    { label: 'FRAME', value: frameProfile },
+    { label: 'ARMOR ID', value: suit.designation },
+  ]
 
   return (
-    <div className="suit-monitor-deck">
-      <section className="suit-monitor suit-monitor--left">
-        <div className="suit-monitor-topline">
-          <span>SYSTEM BUS</span>
-          <strong>PRIMARY STACK</strong>
-        </div>
-        <div className="suit-info-specs">
-          {systemsSpecs.map((spec) => (
-            <SuitSpecRow key={spec.label} label={spec.label} value={spec.value} />
-          ))}
-        </div>
-      </section>
+    <div className="suit-workstation">
+      <div className="suit-workstation-wall" aria-hidden="true" />
 
-      <section className="suit-monitor suit-monitor--center">
-        <div className="suit-info-header">
-          <span className="suit-info-designation">{suit.designation}</span>
-          <span className={`suit-info-status suit-info-status--${suit.status.toLowerCase()}`}>
-            {suit.status}
-          </span>
-        </div>
+      <div className="suit-monitor-deck">
+        <section className="suit-monitor suit-monitor--left">
+          <div className="suit-monitor-shell suit-monitor-shell--side">
+            <div className="suit-monitor-screen suit-monitor-screen--side">
+              <div className="suit-monitor-emblem" aria-hidden="true">
+                <div className="suit-monitor-emblem-core" />
+              </div>
+              <div className="suit-monitor-topline">
+                <span>ARMOR ACCESS</span>
+                <strong>IDENTITY</strong>
+              </div>
+              <div className="suit-readout-stack">
+                {identityReadouts.map((item) => (
+                  <SuitReadoutRow key={item.label} label={item.label} value={item.value} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="suit-monitor-stand" aria-hidden="true">
+            <div className="suit-monitor-neck" />
+            <div className="suit-monitor-foot" />
+          </div>
+        </section>
 
-        <h3 className="suit-info-name">{suit.name}</h3>
-        <div className="suit-monitor-tags">
-          <span>DEPLOYED {suit.year}</span>
-          <span>{frameProfile}</span>
-          <span>{suit.capabilities.length} ACTIVE SYSTEMS</span>
-        </div>
-        <p className="suit-info-desc">{suit.description}</p>
+        <section className="suit-monitor suit-monitor--center">
+          <div className="suit-monitor-shell suit-monitor-shell--center">
+            <div className="suit-monitor-screen suit-monitor-screen--center">
+              <div className="suit-monitor-center-watermark" aria-hidden="true">
+                <div className="suit-monitor-emblem suit-monitor-emblem--center">
+                  <div className="suit-monitor-emblem-core" />
+                </div>
+              </div>
 
-        <div className="suit-monitor-footer">
-          <span>HOLOGRAM GANTRY</span>
-          <strong>Triangulated pedestal lasers are tracing the shell volume in sequence.</strong>
-        </div>
-      </section>
+              <div className="suit-info-header">
+                <span className="suit-info-designation">{suit.designation}</span>
+                <span className={`suit-info-status suit-info-status--${suit.status.toLowerCase()}`}>
+                  {suit.status}
+                </span>
+              </div>
 
-      <section className="suit-monitor suit-monitor--right">
-        <div className="suit-monitor-topline">
-          <span>TACTICAL OUTPUT</span>
-          <strong>MISSION LOADOUT</strong>
-        </div>
+              <h3 className="suit-info-name">{suit.name}</h3>
+              <div className="suit-monitor-tags">
+                <span>DEPLOYED {suit.year}</span>
+                <span>{frameProfile}</span>
+                <span>{suit.capabilities.length} ACTIVE SYSTEMS</span>
+              </div>
+              <p className="suit-info-desc">{suit.description}</p>
 
-        <div className="suit-info-caps">
-          <span className="suit-info-caps-label">CAPABILITIES</span>
-          <ul className="suit-info-caps-list">
-            {suit.capabilities.map((cap) => (
-              <li key={cap}>{cap}</li>
+              <div className="suit-monitor-center-grid">
+                {suit.specSheet.map((spec) => (
+                  <SuitSpecRow key={spec.label} label={spec.label} value={spec.value} />
+                ))}
+              </div>
+
+              <div className="suit-monitor-console-strip">
+                <span>HOLOGRAM GANTRY</span>
+                <strong>Beam triangulation stable. Projection lock synced to platform pedestal.</strong>
+              </div>
+            </div>
+          </div>
+          <div className="suit-monitor-stand suit-monitor-stand--center" aria-hidden="true">
+            <div className="suit-monitor-neck" />
+            <div className="suit-monitor-foot" />
+          </div>
+        </section>
+
+        <section className="suit-monitor suit-monitor--right">
+          <div className="suit-monitor-shell suit-monitor-shell--side">
+            <div className="suit-monitor-screen suit-monitor-screen--side">
+              <div className="suit-monitor-emblem" aria-hidden="true">
+                <div className="suit-monitor-emblem-core" />
+              </div>
+              <div className="suit-monitor-topline">
+                <span>TACTICAL STACK</span>
+                <strong>LOADOUT</strong>
+              </div>
+
+              <div className="suit-info-caps">
+                <span className="suit-info-caps-label">CAPABILITIES</span>
+                <ul className="suit-info-caps-list">
+                  {suit.capabilities.map((cap) => (
+                    <li key={cap}>{cap}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="suit-readout-tray">
+                <span>{suit.variant.toUpperCase()}</span>
+                <span>{suit.specSheet.length} SPEC NODES</span>
+              </div>
+            </div>
+          </div>
+          <div className="suit-monitor-stand" aria-hidden="true">
+            <div className="suit-monitor-neck" />
+            <div className="suit-monitor-foot" />
+          </div>
+        </section>
+      </div>
+
+      <div className="suit-console-desk" aria-hidden="true">
+        <div className="suit-console-device">
+          <div className="suit-console-device-brand">TRIPLE MONITOR KVM</div>
+          <div className="suit-console-device-screen" />
+          <div className="suit-console-device-controls">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <span key={index} />
             ))}
-          </ul>
+          </div>
         </div>
+      </div>
 
-        <div className="suit-info-specs">
-          {tacticalSpecs.map((spec) => (
-            <SuitSpecRow key={spec.label} label={spec.label} value={spec.value} />
-          ))}
+      <div className="suit-input-tray" aria-hidden="true">
+        <div className="suit-input-tray-glow" />
+        <div className="suit-keyboard" />
+        <div className="suit-input-emblem">
+          <div className="suit-monitor-emblem-core" />
         </div>
-      </section>
+        <div className="suit-trackpad" />
+      </div>
     </div>
   )
 }
@@ -453,15 +532,17 @@ export function SuitGallery() {
       </div>
 
       <div className="armor-center">
-        <PlatformDisplay
-          asset={selectedAsset}
-          phase={platformPhase}
-          isLoading={loadingSuitId === selectedAsset?.suit.id}
-          onModelReady={handleModelReady}
-        />
-        {selectedAsset && platformPhase === 'active' ? (
-          <SuitInfoPanel suit={selectedAsset.suit} />
-        ) : null}
+        <div className="armor-center-stack">
+          <PlatformDisplay
+            asset={selectedAsset}
+            phase={platformPhase}
+            isLoading={loadingSuitId === selectedAsset?.suit.id}
+            onModelReady={handleModelReady}
+          />
+          {selectedAsset && platformPhase === 'active' ? (
+            <SuitInfoPanel suit={selectedAsset.suit} />
+          ) : null}
+        </div>
       </div>
 
       <div className="armor-wing armor-wing--right">
