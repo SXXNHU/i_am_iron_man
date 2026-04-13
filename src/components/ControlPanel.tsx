@@ -1,9 +1,15 @@
 import type { AppState } from '../App'
 
+type ActivationMode = 'clap' | 'direct_voice' | 'manual'
+
 type ControlPanelProps = {
+  activationMode: ActivationMode
   appState: AppState
-  hasLaunched: boolean
+  debugMode: boolean
+  isBrowserReady: boolean
   isReady: boolean
+  onActivationModeChange: (mode: ActivationMode) => void
+  onDebugModeChange: (enabled: boolean) => void
   onReady: () => void
   onReset: () => void
   onStart: () => void
@@ -12,9 +18,13 @@ type ControlPanelProps = {
 }
 
 export function ControlPanel({
+  activationMode,
   appState,
-  hasLaunched,
+  debugMode,
+  isBrowserReady,
   isReady,
+  onActivationModeChange,
+  onDebugModeChange,
   onReady,
   onReset,
   onStart,
@@ -26,34 +36,67 @@ export function ControlPanel({
     appState === 'launching' ||
     appState === 'greeting'
 
+const canStop =
+    appState !== 'idle' &&
+    appState !== 'stopped' &&
+    appState !== 'requesting_permissions'
+
+  const startLabel =
+    activationMode === 'clap'
+      ? 'ARM CLAP'
+      : activationMode === 'manual'
+        ? 'START MANUAL'
+        : 'START VOICE'
+
   return (
     <div className="control-panel">
-      <button className="secondary" disabled={busy || hasLaunched} onClick={onReady}>
-        {isReady ? 'Ready Complete' : 'Ready'}
-      </button>
+      <select
+        aria-label="Activation mode"
+        className="hud-btn ghost"
+        onChange={(event) => onActivationModeChange(event.target.value as ActivationMode)}
+        value={activationMode}
+      >
+        <option value="clap">CLAP</option>
+        <option value="direct_voice">DIRECT VOICE</option>
+        <option value="manual">MANUAL</option>
+      </select>
+
       <button
-        className="primary"
-        disabled={busy || hasLaunched || !isReady}
+        aria-pressed={debugMode}
+        className={`hud-btn ghost${debugMode ? ' primary' : ''}`}
+        onClick={() => onDebugModeChange(!debugMode)}
+        type="button"
+      >
+        {debugMode ? 'DEBUG ON' : 'DEBUG OFF'}
+      </button>
+
+      <button className="hud-btn" disabled={busy} onClick={onReady}>
+        {isReady ? 'PRIMED' : 'PRIME'}
+      </button>
+
+      <button
+        className="hud-btn primary"
+        disabled={busy || !isReady}
         onClick={onStart}
+        title={`Start ${activationMode.replace('_', ' ')} mode`}
       >
-        Start JARVIS
+        {startLabel}
       </button>
-      <button
-        className="secondary"
-        disabled={appState === 'idle' || appState === 'stopped'}
-        onClick={onStop}
-      >
-        Stop Listening
+
+      <button className="hud-btn danger" disabled={!canStop} onClick={onStop}>
+        TERMINATE
       </button>
+
       <button
-        className="secondary"
-        disabled={busy || hasLaunched}
+        className="hud-btn"
+        disabled={busy || !isBrowserReady}
         onClick={onTestLaunch}
       >
-        Test Launch
+        BROWSER
       </button>
-      <button className="ghost" onClick={onReset}>
-        Reset
+
+      <button className="hud-btn ghost" onClick={onReset}>
+        RESET
       </button>
     </div>
   )
