@@ -4,8 +4,8 @@ import {
   REALTIME_MODEL,
   REALTIME_SYSTEM_PROMPT,
   REALTIME_VOICE,
-  STOP_LISTENING_PHRASES,
 } from '../utils/constants'
+import type { UserTranscriptMeta } from '../types/voiceCommands'
 
 export type TranscriptEntryRole =
   | 'assistant'
@@ -15,6 +15,7 @@ export type TranscriptEntryRole =
   | 'system'
 
 export type TranscriptEntry = {
+  debug?: boolean
   id: string
   role: TranscriptEntryRole
   text: string
@@ -31,15 +32,17 @@ type RealtimeSessionPayload = {
 }
 
 type UseRealtimeVoiceOptions = {
+  debugMode?: boolean
   onError: (message: string) => void
   onStateChange: (state: 'voice_ready' | 'conversation_active' | 'stopped') => void
-  onStopRequested: (reason: string) => void
+  onUserTranscriptFinal?: (text: string, meta: UserTranscriptMeta) => void
 }
 
 export function useRealtimeVoice({
+  debugMode = false,
   onError,
   onStateChange,
-  onStopRequested,
+  onUserTranscriptFinal,
 }: UseRealtimeVoiceOptions) {
   const [connectionStatus, setConnectionStatus] = useState('idle')
   const [sessionStatus, setSessionStatus] = useState<RealtimeState>('idle')
@@ -53,22 +56,37 @@ export function useRealtimeVoice({
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const bufferedAssistantRef = useRef('')
+  const transcriptMetaCounterRef = useRef(0)
+  const allowedResponseIdRef = useRef<string | null>(null)
+  const currentResponseIdRef = useRef<string | null>(null)
+  const suppressedResponseIdsRef = useRef<Set<string>>(new Set())
+  const pendingAssistantResponseRequestRef = useRef(false)
+  const cancelNextCreatedResponseRef = useRef(false)
 
   const isSupported =
     typeof window !== 'undefined' &&
     !!window.RTCPeerConnection &&
     !!navigator.mediaDevices?.getUserMedia
 
-  function appendEntry(role: TranscriptEntryRole, text: string) {
+  function appendEntry(role: TranscriptEntryRole, text: string, debug = false) {
     setTranscriptEntries((current) => [
       ...current,
       {
+        debug,
         id: `${Date.now()}-${current.length}-${role}`,
         role,
         text,
         timestamp: Date.now(),
       },
     ])
+  }
+
+  function appendDebugEntry(text: string) {
+    if (!debugMode) {
+      return
+    }
+
+    appendEntry('event', text, true)
   }
 
   async function initRealtimeVoiceSession(stream: MediaStream) {
@@ -136,7 +154,7 @@ export function useRealtimeVoice({
                   threshold: 0.55,
                   silence_duration_ms: 650,
                   prefix_padding_ms: 250,
-                  create_response: true,
+                  create_response: false,
                   interrupt_response: true,
                 },
               },
@@ -198,6 +216,96 @@ export function useRealtimeVoice({
     setConnectionStatus('closed')
     setSessionStatus('stopped')
     onStateChange('stopped')
+    resetResponseTracking()
+  }
+
+  function cancelAssistantResponse() {
+    const currentResponseId = currentResponseIdRef.current
+
+    if (currentResponseId) {
+      suppressedResponseIdsRef.current.add(currentResponseId)
+      appendDebugEntry(`cancel local response_id=${currentResponseId} source=current`)
+      sendClientEvent({ type: 'response.cancel', response_id: currentResponseId })
+    } else {
+      cancelNextCreatedResponseRef.current = true
+      appendDebugEntry('cancel local response_id=pending-next-created')
+      sendClientEvent({ type: 'response.cancel' })
+    }
+
+    sendClientEvent({ type: 'output_audio_buffer.clear' })
+    bufferedAssistantRef.current = ''
+    setAssistantResponse('')
+  }
+
+  function requestAssistantResponse() {
+    pendingAssistantResponseRequestRef.current = true
+    cancelNextCreatedResponseRef.current = false
+    allowedResponseIdRef.current = null
+    appendDebugEntry('request response.create pending=true')
+    sendClientEvent({
+      type: 'response.create',
+      response: {
+        modalities: ['audio', 'text'],
+      },
+    })
+  }
+
+  function appendLocalTranscriptEntry(role: TranscriptEntryRole, text: string) {
+    appendEntry(role, text)
+  }
+
+  function resetResponseTracking() {
+    appendDebugEntry(
+      `tracking reset allowed=${allowedResponseIdRef.current ?? 'none'} active=${currentResponseIdRef.current ?? 'none'} suppressed=${suppressedResponseIdsRef.current.size}`,
+    )
+    allowedResponseIdRef.current = null
+    currentResponseIdRef.current = null
+    pendingAssistantResponseRequestRef.current = false
+    cancelNextCreatedResponseRef.current = false
+    suppressedResponseIdsRef.current.clear()
+    bufferedAssistantRef.current = ''
+    setAssistantResponse('')
+  }
+
+  function extractResponseId(event: Record<string, unknown>) {
+    if (typeof event.response_id === 'string') {
+      return event.response_id
+    }
+
+    const response = event.response as { id?: string } | undefined
+    if (typeof response?.id === 'string') {
+      return response.id
+    }
+
+    return null
+  }
+
+  function isSuppressedResponse(responseId: string | null) {
+    if (!responseId) {
+      return false
+    }
+
+    return suppressedResponseIdsRef.current.has(responseId)
+  }
+
+  function markResponseComplete(responseId: string | null) {
+    if (!responseId) {
+      return
+    }
+
+    appendDebugEntry(
+      `response complete response_id=${responseId} allowed=${allowedResponseIdRef.current === responseId} suppressed=${suppressedResponseIdsRef.current.has(responseId)}`,
+    )
+
+    if (currentResponseIdRef.current === responseId) {
+      currentResponseIdRef.current = null
+    }
+
+    if (allowedResponseIdRef.current === responseId) {
+      allowedResponseIdRef.current = null
+    }
+
+    suppressedResponseIdsRef.current.delete(responseId)
   }
 
   function resetRealtimeVoice() {
@@ -229,19 +337,73 @@ export function useRealtimeVoice({
     }
 
     const type = typeof event.type === 'string' ? event.type : 'unknown'
+    const responseId = extractResponseId(event)
 
     switch (type) {
       case 'session.created':
         appendEntry('system', 'Realtime session created.')
         break
+      case 'response.created': {
+        if (responseId) {
+          currentResponseIdRef.current = responseId
+          appendDebugEntry(
+            `response.created response_id=${responseId} pending=${pendingAssistantResponseRequestRef.current} cancel_next=${cancelNextCreatedResponseRef.current}`,
+          )
+
+          if (cancelNextCreatedResponseRef.current) {
+            suppressedResponseIdsRef.current.add(responseId)
+            cancelNextCreatedResponseRef.current = false
+            appendDebugEntry(`response suppress response_id=${responseId} reason=cancel-next-created`)
+            sendClientEvent({ type: 'response.cancel', response_id: responseId })
+            sendClientEvent({ type: 'output_audio_buffer.clear' })
+            break
+          }
+
+          if (pendingAssistantResponseRequestRef.current) {
+            allowedResponseIdRef.current = responseId
+            pendingAssistantResponseRequestRef.current = false
+            appendDebugEntry(`response allow response_id=${responseId}`)
+          } else {
+            suppressedResponseIdsRef.current.add(responseId)
+            appendDebugEntry(`response suppress response_id=${responseId} reason=unsolicited`)
+          }
+        }
+        break
+      }
+      case 'response.output_audio_transcript.delta':
       case 'response.audio_transcript.delta': {
+        if (
+          isSuppressedResponse(responseId) ||
+          (allowedResponseIdRef.current && responseId !== allowedResponseIdRef.current)
+        ) {
+          if (responseId) {
+            appendDebugEntry(`response delta ignored response_id=${responseId}`)
+          }
+          break
+        }
+
         const delta = typeof event.delta === 'string' ? event.delta : ''
         bufferedAssistantRef.current += delta
         setAssistantResponse(bufferedAssistantRef.current)
         break
       }
+      case 'response.output_audio_transcript.done':
+      case 'response.output_text.done':
       case 'response.audio_transcript.done':
       case 'response.text.done': {
+        if (
+          isSuppressedResponse(responseId) ||
+          (allowedResponseIdRef.current && responseId !== allowedResponseIdRef.current)
+        ) {
+          if (responseId) {
+            appendDebugEntry(`response done ignored response_id=${responseId}`)
+          }
+          bufferedAssistantRef.current = ''
+          setAssistantResponse('')
+          markResponseComplete(responseId)
+          break
+        }
+
         const text =
           typeof event.transcript === 'string'
             ? event.transcript
@@ -256,17 +418,22 @@ export function useRealtimeVoice({
         }
         break
       }
+      case 'response.output_item.done':
+      case 'response.output_audio.done':
+      case 'response.done':
+        markResponseComplete(responseId)
+        break
       case 'conversation.item.input_audio_transcription.completed': {
         const transcript =
           typeof event.transcript === 'string' ? event.transcript.trim() : ''
         if (transcript) {
           setCurrentTranscript(transcript)
           appendEntry('user', transcript)
-
-          const normalized = transcript.toLowerCase()
-          if (STOP_LISTENING_PHRASES.some((phrase) => normalized.includes(phrase))) {
-            onStopRequested('Voice session stopped after hearing a stop command.')
-          }
+          transcriptMetaCounterRef.current += 1
+          onUserTranscriptFinal?.(transcript, {
+            source: 'realtime_final',
+            timestamp: transcriptMetaCounterRef.current,
+          })
         }
         break
       }
@@ -335,6 +502,7 @@ export function useRealtimeVoice({
   useEffect(() => {
     remoteAudioRef.current = new Audio()
     remoteAudioRef.current.autoplay = true
+    const suppressedResponseIds = suppressedResponseIdsRef.current
 
     return () => {
       if (streamRef.current) {
@@ -347,16 +515,25 @@ export function useRealtimeVoice({
       dataChannelRef.current = null
       peerConnectionRef.current?.close()
       peerConnectionRef.current = null
+      allowedResponseIdRef.current = null
+      currentResponseIdRef.current = null
+      pendingAssistantResponseRequestRef.current = false
+      cancelNextCreatedResponseRef.current = false
+      suppressedResponseIds.clear()
+      bufferedAssistantRef.current = ''
     }
   }, [])
 
   return {
     assistantResponse,
     connectionStatus,
+    cancelAssistantResponse,
     currentTranscript,
     error,
     initRealtimeVoiceSession,
     isSupported,
+    appendLocalTranscriptEntry,
+    requestAssistantResponse,
     resetRealtimeVoice,
     sessionStatus,
     startVoiceConversation,

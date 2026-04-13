@@ -9,6 +9,7 @@ import {
 } from '../utils/constants'
 
 type UseClapDetectionOptions = {
+  getStream: () => Promise<MediaStream>
   onFirstClap: () => void
   onDoubleClap: () => void
 }
@@ -43,12 +44,12 @@ export function detectClap(
 }
 
 export function useClapDetection({
+  getStream,
   onFirstClap,
   onDoubleClap,
 }: UseClapDetectionOptions) {
   const [analyzerState, setAnalyzerState] = useState<AnalyzerState>('idle')
   const [error, setError] = useState('')
-  const streamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
@@ -62,36 +63,23 @@ export function useClapDetection({
     !!window.AudioContext &&
     !!navigator.mediaDevices?.getUserMedia
 
-  async function requestMicPermission() {
+  async function startClapListening() {
     if (!isSupported) {
       throw new Error('This browser does not support Web Audio microphone access.')
     }
 
-    if (streamRef.current) {
-      return streamRef.current
-    }
+    let stream: MediaStream
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      })
-
-      streamRef.current = stream
-      return stream
+      stream = await getStream()
+      setError('')
     } catch (caught) {
       const message =
         caught instanceof Error ? caught.message : 'Microphone permission failed.'
       setError(message)
       throw new Error(message)
     }
-  }
 
-  async function startClapListening() {
-    const stream = await requestMicPermission()
     const AudioContextCtor = window.AudioContext
     const audioContext =
       audioContextRef.current ?? new AudioContextCtor({ latencyHint: 'interactive' })
@@ -173,18 +161,6 @@ export function useClapDetection({
     setAnalyzerState('stopped')
   }
 
-  function stopStreamTracks() {
-    if (!streamRef.current) {
-      return
-    }
-
-    for (const track of streamRef.current.getTracks()) {
-      track.stop()
-    }
-
-    streamRef.current = null
-  }
-
   function resetClapDetection() {
     firstClapAtRef.current = null
     lastAcceptedPeakAtRef.current = 0
@@ -193,16 +169,9 @@ export function useClapDetection({
     setAnalyzerState('idle')
   }
 
-  function releaseMicrophone() {
-    stopClapListening()
-    stopStreamTracks()
-    resetClapDetection()
-  }
-
   useEffect(() => {
     return () => {
       stopClapListening()
-      stopStreamTracks()
     }
   }, [])
 
@@ -210,9 +179,6 @@ export function useClapDetection({
     analyzerState,
     error,
     isSupported,
-    streamRef,
-    requestMicPermission,
-    releaseMicrophone,
     startClapListening,
     stopClapListening,
     resetClapDetection,

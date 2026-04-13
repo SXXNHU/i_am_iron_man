@@ -207,7 +207,7 @@ function writeYoutubePlayerShell(target: Window | null) {
         <span>Playback is being primed now so the left screen can go live on the double clap.</span>
       </div>
     </div>
-    <div class="status" id="jarvis-status">Priming autoplay with volume 100 from the Start JARVIS click.</div>
+    <div class="status" id="jarvis-status">Priming muted autoplay — will unmute on double clap.</div>
     <script>
       let player;
       let playerReady = false;
@@ -223,8 +223,6 @@ function writeYoutubePlayerShell(target: Window | null) {
 
       function startPrimedPlayback() {
         if (!player) return;
-        try { player.setVolume(100); } catch (error) {}
-        try { player.unMute(); } catch (error) {}
         try { player.playVideo(); } catch (error) {}
       }
 
@@ -269,7 +267,7 @@ function writeYoutubePlayerShell(target: Window | null) {
             rel: 0,
             playsinline: 1,
             modestbranding: 1,
-            mute: 0,
+            mute: 1,
             enablejsapi: 1,
             origin: '${window.location.origin}'
           },
@@ -333,6 +331,11 @@ function ensureWindowVisible(target: Window | null) {
   } catch {
     // Ignore browser-specific focus errors.
   }
+}
+
+function focusChatWindow(prepared: LaunchPreparation | null) {
+  ensureWindowVisible(prepared?.chatWindow ?? null)
+  window.setTimeout(() => ensureWindowVisible(prepared?.chatWindow ?? null), 120)
 }
 
 function focusYoutubeWindow(prepared: LaunchPreparation | null) {
@@ -436,6 +439,13 @@ export function openWindowsSingleScreen(
   return 'single-screen'
 }
 
+export function hasPreparedLaunchWindows(prepared: LaunchPreparation | null) {
+  return !!prepared?.youtubeWindow &&
+    !prepared.youtubeWindow.closed &&
+    !!prepared.chatWindow &&
+    !prepared.chatWindow.closed
+}
+
 export async function openWindowsMultiScreen(
   prepared: LaunchPreparation | null,
 ): Promise<MonitorMode> {
@@ -445,6 +455,7 @@ export async function openWindowsMultiScreen(
 
 export function focusLaunchWindows(prepared: LaunchPreparation | null) {
   focusYoutubeWindow(prepared)
+  focusChatWindow(prepared)
 }
 
 export function cleanupLaunchWindows(prepared: LaunchPreparation | null) {
